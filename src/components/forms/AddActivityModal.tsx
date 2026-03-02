@@ -65,17 +65,26 @@ export function AddActivityModal({ open, onClose, onSubmit, initialClientId, ini
           clientId: initialClientId,
           dealId: initialDealId,
         }}
+        scrollToFirstError
       >
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="type" label="Тип" rules={[{ required: true }]}>
+            <Form.Item
+              name="type"
+              label="Тип"
+              rules={[{ required: true, message: 'Выберите тип активности' }]}
+            >
               <Select>
                 {ACTIVITY_TYPES.map((t) => <Option key={t.value} value={t.value}>{t.label}</Option>)}
               </Select>
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="date" label="Дата и время" rules={[{ required: true, message: 'Укажите дату' }]}>
+            <Form.Item
+              name="date"
+              label="Дата и время"
+              rules={[{ required: true, message: 'Укажите дату' }]}
+            >
               <DatePicker showTime format="DD.MM.YYYY HH:mm" style={{ width: '100%' }} />
             </Form.Item>
           </Col>
@@ -89,9 +98,7 @@ export function AddActivityModal({ open, onClose, onSubmit, initialClientId, ini
                   String(opt?.children ?? '').toLowerCase().includes(input.toLowerCase())
                 }>
                 {clients.map((c) => (
-                  <Option key={c.id} value={c.id}>
-                    {c.firstName} {c.lastName}
-                  </Option>
+                  <Option key={c.id} value={c.id}>{c.firstName} {c.lastName}</Option>
                 ))}
               </Select>
             </Form.Item>
@@ -102,19 +109,30 @@ export function AddActivityModal({ open, onClose, onSubmit, initialClientId, ini
                 filterOption={(input, opt) =>
                   String(opt?.children ?? '').toLowerCase().includes(input.toLowerCase())
                 }>
-                {deals.map((d) => (
-                  <Option key={d.id} value={d.id}>{d.title}</Option>
-                ))}
+                {deals.map((d) => <Option key={d.id} value={d.id}>{d.title}</Option>)}
               </Select>
             </Form.Item>
           </Col>
         </Row>
 
-        <Form.Item name="description" label="Описание" rules={[{ required: true, message: 'Введите описание' }]}>
-          <TextArea rows={3} placeholder="Что произошло?" />
+        <Form.Item
+          name="description"
+          label="Описание"
+          rules={[
+            { required: true, message: 'Введите описание' },
+            { min: 3, message: 'Минимум 3 символа' },
+            { whitespace: true, message: 'Описание не может состоять только из пробелов' },
+            { max: 1000, message: 'Максимум 1000 символов' },
+          ]}
+        >
+          <TextArea rows={3} placeholder="Что произошло?" showCount maxLength={1000} />
         </Form.Item>
 
-        <Form.Item name="result" label="Результат">
+        <Form.Item
+          name="result"
+          label="Результат"
+          rules={[{ max: 500, message: 'Максимум 500 символов' }]}
+        >
           <Input placeholder="Итог (необязательно)" />
         </Form.Item>
       </Form>

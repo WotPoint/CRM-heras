@@ -391,35 +391,88 @@ export default function ClientDetailPage() {
         cancelText="Отмена"
         width={600}
       >
-        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }} scrollToFirstError>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="firstName" label="Имя" rules={[{ required: true }]}>
+              <Form.Item
+                name="firstName"
+                label="Имя"
+                rules={[
+                  { required: true, message: 'Введите имя' },
+                  { min: 2, message: 'Минимум 2 символа' },
+                  { whitespace: true, message: 'Имя не может состоять только из пробелов' },
+                ]}
+              >
                 <Input />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="lastName" label="Фамилия">
+              <Form.Item
+                name="lastName"
+                label="Фамилия"
+                rules={[
+                  { min: 2, message: 'Минимум 2 символа' },
+                  { whitespace: true, message: 'Фамилия не может состоять только из пробелов' },
+                ]}
+              >
                 <Input />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="company" label="Компания"><Input /></Form.Item>
+          <Form.Item
+            name="company"
+            label="Компания"
+            rules={[{ whitespace: true, message: 'Поле не может состоять только из пробелов' }]}
+          >
+            <Input />
+          </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="email" label="Email" rules={[{ type: 'email' }]}><Input /></Form.Item>
+              <Form.Item
+                name="email"
+                label="Email"
+                rules={[{ type: 'email', message: 'Введите корректный email' }]}
+              >
+                <Input />
+              </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="phone" label="Телефон"><Input /></Form.Item>
+              <Form.Item
+                name="phone"
+                label="Телефон"
+                rules={[
+                  {
+                    validator: (_, value: string) => {
+                      if (!value) return Promise.resolve()
+                      const digits = value.replace(/\D/g, '')
+                      if (digits.length < 10 || digits.length > 12)
+                        return Promise.reject(new Error('Введите корректный номер (10–11 цифр)'))
+                      return Promise.resolve()
+                    },
+                  },
+                ]}
+              >
+                <Input placeholder="+7 900 000-00-00" />
+              </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="address" label="Адрес"><Input /></Form.Item>
+          <Form.Item
+            name="address"
+            label="Адрес"
+            rules={[{ whitespace: true, message: 'Поле не может состоять только из пробелов' }]}
+          >
+            <Input />
+          </Form.Item>
           <Form.Item name="source" label="Источник"><Input /></Form.Item>
           <Form.Item name="tags" label="Теги">
             <Select mode="tags" />
           </Form.Item>
-          <Form.Item name="comment" label="Комментарий">
-            <Input.TextArea rows={3} />
+          <Form.Item
+            name="comment"
+            label="Комментарий"
+            rules={[{ max: 500, message: 'Максимум 500 символов' }]}
+          >
+            <Input.TextArea rows={3} showCount maxLength={500} />
           </Form.Item>
         </Form>
       </Modal>

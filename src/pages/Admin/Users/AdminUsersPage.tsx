@@ -220,28 +220,66 @@ export default function AdminUsersPage() {
 
   // ── Форма пользователя (общая для добавления и редактирования) ──
 
+  const phoneRule = {
+    validator: (_: unknown, value: string) => {
+      if (!value) return Promise.resolve()
+      const digits = value.replace(/\D/g, '')
+      if (digits.length < 10 || digits.length > 12)
+        return Promise.reject(new Error('Введите корректный номер (10–11 цифр)'))
+      return Promise.resolve()
+    },
+  }
+
   const UserFormFields = ({ supervisors }: { supervisors: User[] }) => (
     <>
       <Form.Item style={{ marginBottom: 0 }}>
         <Space.Compact style={{ width: '100%', gap: 16, display: 'flex' }}>
-          <Form.Item name="firstName" label="Имя" rules={[{ required: true }]} style={{ flex: 1 }}>
+          <Form.Item
+            name="firstName"
+            label="Имя"
+            style={{ flex: 1 }}
+            rules={[
+              { required: true, message: 'Введите имя' },
+              { min: 2, message: 'Минимум 2 символа' },
+              { whitespace: true, message: 'Имя не может состоять только из пробелов' },
+            ]}
+          >
             <Input prefix={<UserOutlined style={{ color: '#bbb' }} />} placeholder="Имя" />
           </Form.Item>
-          <Form.Item name="lastName" label="Фамилия" style={{ flex: 1 }}>
+          <Form.Item
+            name="lastName"
+            label="Фамилия"
+            style={{ flex: 1 }}
+            rules={[
+              { min: 2, message: 'Минимум 2 символа' },
+              { whitespace: true, message: 'Фамилия не может состоять только из пробелов' },
+            ]}
+          >
             <Input placeholder="Фамилия" />
           </Form.Item>
         </Space.Compact>
       </Form.Item>
 
-      <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}>
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[
+          { required: true, message: 'Введите email' },
+          { type: 'email', message: 'Введите корректный email' },
+        ]}
+      >
         <Input prefix={<MailOutlined style={{ color: '#bbb' }} />} placeholder="user@company.ru" />
       </Form.Item>
 
-      <Form.Item name="phone" label="Телефон">
+      <Form.Item name="phone" label="Телефон" rules={[phoneRule]}>
         <Input placeholder="+7 900 000-00-00" />
       </Form.Item>
 
-      <Form.Item name="role" label="Роль" rules={[{ required: true }]}>
+      <Form.Item
+        name="role"
+        label="Роль"
+        rules={[{ required: true, message: 'Выберите роль пользователя' }]}
+      >
         <Select placeholder="Выберите роль">
           <Option value="manager">Менеджер</Option>
           <Option value="supervisor">Руководитель</Option>
@@ -317,9 +355,16 @@ export default function AdminUsersPage() {
         cancelText="Отмена"
         width={520}
       >
-        <Form form={addForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={addForm} layout="vertical" style={{ marginTop: 16 }} scrollToFirstError>
           <UserFormFields supervisors={supervisors} />
-          <Form.Item name="password" label="Временный пароль" rules={[{ required: true, min: 6 }]}>
+          <Form.Item
+            name="password"
+            label="Временный пароль"
+            rules={[
+              { required: true, message: 'Введите пароль' },
+              { min: 6, message: 'Минимум 6 символов' },
+            ]}
+          >
             <Input.Password placeholder="Минимум 6 символов" />
           </Form.Item>
         </Form>
@@ -335,7 +380,7 @@ export default function AdminUsersPage() {
         cancelText="Отмена"
         width={520}
       >
-        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }}>
+        <Form form={editForm} layout="vertical" style={{ marginTop: 16 }} scrollToFirstError>
           <UserFormFields supervisors={supervisors.filter((s) => s.id !== editUser?.id)} />
           <Form.Item name="isActive" label="Статус" valuePropName="checked">
             <Switch checkedChildren="Активен" unCheckedChildren="Заблокирован" />

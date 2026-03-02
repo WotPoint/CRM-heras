@@ -57,20 +57,50 @@ export default function SettingsPage() {
           layout="vertical"
           initialValues={{ name: currentUser?.name, email: currentUser?.email, phone: currentUser?.phone }}
           onFinish={handleProfileSave}
+          scrollToFirstError
         >
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="name" label="Полное имя" rules={[{ required: true }]}>
+              <Form.Item
+                name="name"
+                label="Полное имя"
+                rules={[
+                  { required: true, message: 'Введите имя' },
+                  { min: 2, message: 'Минимум 2 символа' },
+                  { whitespace: true, message: 'Имя не может состоять только из пробелов' },
+                ]}
+              >
                 <Input prefix={<UserOutlined style={{ color: '#bbb' }} />} />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="phone" label="Телефон">
+              <Form.Item
+                name="phone"
+                label="Телефон"
+                rules={[
+                  {
+                    validator: (_, value: string) => {
+                      if (!value) return Promise.resolve()
+                      const digits = value.replace(/\D/g, '')
+                      if (digits.length < 10 || digits.length > 12)
+                        return Promise.reject(new Error('Введите корректный номер (10–11 цифр)'))
+                      return Promise.resolve()
+                    },
+                  },
+                ]}
+              >
                 <Input placeholder="+7 900 000-00-00" />
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item name="email" label="Email" rules={[{ required: true }, { type: 'email' }]}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Введите email' },
+              { type: 'email', message: 'Введите корректный email' },
+            ]}
+          >
             <Input prefix={<UserOutlined style={{ color: '#bbb' }} />} />
           </Form.Item>
           <Form.Item>
@@ -81,17 +111,28 @@ export default function SettingsPage() {
         <Divider />
 
         <Title level={5}>Сменить пароль</Title>
-        <Form form={passwordForm} layout="vertical" onFinish={handlePasswordSave}>
+        <Form form={passwordForm} layout="vertical" onFinish={handlePasswordSave} scrollToFirstError>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="currentPassword" label="Текущий пароль" rules={[{ required: true }]}>
+              <Form.Item
+                name="currentPassword"
+                label="Текущий пароль"
+                rules={[{ required: true, message: 'Введите текущий пароль' }]}
+              >
                 <Input.Password prefix={<LockOutlined style={{ color: '#bbb' }} />} />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="newPassword" label="Новый пароль" rules={[{ required: true, min: 6 }]}>
+              <Form.Item
+                name="newPassword"
+                label="Новый пароль"
+                rules={[
+                  { required: true, message: 'Введите новый пароль' },
+                  { min: 6, message: 'Минимум 6 символов' },
+                ]}
+              >
                 <Input.Password prefix={<LockOutlined style={{ color: '#bbb' }} />} />
               </Form.Item>
             </Col>
@@ -101,11 +142,11 @@ export default function SettingsPage() {
                 label="Подтвердите пароль"
                 dependencies={['newPassword']}
                 rules={[
-                  { required: true },
+                  { required: true, message: 'Подтвердите новый пароль' },
                   ({ getFieldValue }) => ({
                     validator(_, value) {
                       if (!value || getFieldValue('newPassword') === value) return Promise.resolve()
-                      return Promise.reject('Пароли не совпадают')
+                      return Promise.reject(new Error('Пароли не совпадают'))
                     },
                   }),
                 ]}

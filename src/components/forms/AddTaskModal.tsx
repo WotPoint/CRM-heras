@@ -66,8 +66,17 @@ export function AddTaskModal({ open, onClose, onSubmit, initialClientId, initial
           clientId: initialClientId,
           dealId: initialDealId,
         }}
+        scrollToFirstError
       >
-        <Form.Item name="title" label="Название задачи" rules={[{ required: true, message: 'Введите название' }]}>
+        <Form.Item
+          name="title"
+          label="Название задачи"
+          rules={[
+            { required: true, message: 'Введите название задачи' },
+            { min: 3, message: 'Минимум 3 символа' },
+            { whitespace: true, message: 'Название не может состоять только из пробелов' },
+          ]}
+        >
           <Input placeholder="Что нужно сделать?" />
         </Form.Item>
 
@@ -80,14 +89,36 @@ export function AddTaskModal({ open, onClose, onSubmit, initialClientId, initial
             </Form.Item>
           </Col>
           <Col span={12}>
-            <Form.Item name="deadline" label="Дедлайн">
-              <DatePicker showTime format="DD.MM.YYYY HH:mm" style={{ width: '100%' }} />
+            <Form.Item
+              name="deadline"
+              label="Дедлайн"
+              rules={[
+                {
+                  validator: (_, value) => {
+                    if (!value) return Promise.resolve()
+                    if (dayjs(value).isBefore(dayjs(), 'minute'))
+                      return Promise.reject(new Error('Дедлайн не может быть в прошлом'))
+                    return Promise.resolve()
+                  },
+                },
+              ]}
+            >
+              <DatePicker
+                showTime
+                format="DD.MM.YYYY HH:mm"
+                style={{ width: '100%' }}
+                disabledDate={(d) => d.isBefore(dayjs(), 'day')}
+              />
             </Form.Item>
           </Col>
         </Row>
 
         {hasRole('supervisor', 'admin') && (
-          <Form.Item name="assigneeId" label="Ответственный" rules={[{ required: true }]}>
+          <Form.Item
+            name="assigneeId"
+            label="Ответственный"
+            rules={[{ required: true, message: 'Выберите ответственного' }]}
+          >
             <Select>
               {managers.map((m) => <Option key={m.id} value={m.id}>{m.name}</Option>)}
             </Select>
@@ -119,8 +150,12 @@ export function AddTaskModal({ open, onClose, onSubmit, initialClientId, initial
           </Col>
         </Row>
 
-        <Form.Item name="description" label="Описание">
-          <TextArea rows={2} placeholder="Дополнительные детали (необязательно)" />
+        <Form.Item
+          name="description"
+          label="Описание"
+          rules={[{ max: 500, message: 'Максимум 500 символов' }]}
+        >
+          <TextArea rows={2} placeholder="Дополнительные детали (необязательно)" showCount maxLength={500} />
         </Form.Item>
       </Form>
     </Modal>
