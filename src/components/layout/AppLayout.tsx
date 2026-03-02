@@ -1,4 +1,4 @@
-import { Layout } from 'antd'
+import { Layout, theme } from 'antd'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
@@ -6,15 +6,17 @@ import { Header } from './Header'
 const { Content } = Layout
 
 export function AppLayout() {
+  const { token } = theme.useToken()
+
   return (
-    <Layout style={{ minHeight: '100vh' }}>
+    <Layout style={{ minHeight: '100vh', background: token.colorBgLayout }}>
       <Sidebar />
-      <Layout>
+      <Layout style={{ background: token.colorBgLayout }}>
         <Header />
         <Content
           style={{
             padding: 24,
-            background: '#f5f7fa',
+            background: token.colorBgLayout,
             minHeight: 'calc(100vh - 56px)',
             overflow: 'auto',
           }}
