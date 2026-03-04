@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM-heras API Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+    header {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+    header span { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+    .layout { display: flex; height: calc(100vh - 65px); }
+
+    /* Sidebar nav */
+    nav {
+      width: 200px;
+      min-width: 200px;
+      background: #161b27;
+      border-right: 1px solid #2d3748;
+      overflow-y: auto;
+      padding: 12px 0;
+    }
+    nav a {
+      display: block;
+      padding: 9px 20px;
+      color: #a0aec0;
+      text-decoration: none;
+      font-size: 13px;
+      border-left: 3px solid transparent;
+      transition: all 0.15s;
+    }
+    nav a:hover { color: #e2e8f0; background: #1e2535; }
+    nav a.active { color: #667eea; border-left-color: #667eea; background: #1a2040; }
+    nav .nav-group { padding: 16px 20px 4px; font-size: 11px; color: #4a5568; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* Main content */
+    main { flex: 1; overflow-y: auto; padding: 24px 32px; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    h2 { font-size: 20px; font-weight: 700; margin-bottom: 4px; color: #e2e8f0; }
+    .section-desc { color: #718096; font-size: 13px; margin-bottom: 20px; }
+
+    .card {
+      background: #161b27;
+      border: 1px solid #2d3748;
+      border-radius: 10px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+    .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: #e2e8f0; }
+    .card p { font-size: 12px; color: #718096; margin-bottom: 12px; }
+
+    .endpoint-badge {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-right: 6px;
+      margin-bottom: 10px;
+    }
+    .GET    { background: #1a3a2a; color: #48bb78; border: 1px solid #2f6b45; }
+    .POST   { background: #1a2a3a; color: #63b3ed; border: 1px solid #2a4a6a; }
+    .PATCH  { background: #3a2a1a; color: #ed8936; border: 1px solid #6a4a2a; }
+    .DELETE { background: #3a1a1a; color: #fc8181; border: 1px solid #6a2a2a; }
+
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+
+    input, textarea, select {
+      background: #0f1117;
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 13px;
+      padding: 6px 10px;
+    }
+    input { min-width: 200px; }
+    textarea { width: 100%; min-height: 80px; font-family: monospace; font-size: 12px; resize: vertical; }
+
+    button {
+      padding: 7px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button.btn-primary { background: #667eea; color: #fff; }
+    button.btn-get    { background: #2f6b45; color: #48bb78; }
+    button.btn-post   { background: #2a4a6a; color: #63b3ed; }
+    button.btn-patch  { background: #6a4a2a; color: #ed8936; }
+    button.btn-delete { background: #6a2a2a; color: #fc8181; }
+
+    .result {
+      margin-top: 10px;
+      background: #0a0d14;
+      border: 1px solid #2d3748;
+      border-radius: 6px;
+      padding: 12px;
+      font-family: monospace;
+      font-size: 12px;
+      max-height: 320px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+    .result.visible { display: block; }
+    .result.ok { border-color: #2f6b45; color: #68d391; }
+    .result.err { border-color: #6a2a2a; color: #fc8181; }
+
+    /* Auth bar */
+    .auth-bar {
+      background: #1a2040;
+      border: 1px solid #3a4a7a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .auth-bar .token-status {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #2d3748;
+      color: #a0aec0;
+    }
+    .auth-bar .token-status.has-token { background: #1a3a2a; color: #48bb78; }
+    #tokenDisplay { font-size: 11px; color: #4a5568; font-family: monospace; max-width: 400px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>CRM-heras API Tester</h1>
+  <span>Express + In-memory · порт 3001</span>
+</header>
+
+<div class="layout">
+  <nav>
+    <div class="nav-group">Auth</div>
+    <a href="#" onclick="showSection('auth')" id="nav-auth" class="active">🔐 Авторизация</a>
+
+    <div class="nav-group">Данные</div>
+    <a href="#" onclick="showSection('users')" id="nav-users">👥 Пользователи</a>
+    <a href="#" onclick="showSection('clients')" id="nav-clients">🏢 Клиенты</a>
+    <a href="#" onclick="showSection('deals')" id="nav-deals">💼 Сделки</a>
+    <a href="#" onclick="showSection('activities')" id="nav-activities">📋 Активности</a>
+    <a href="#" onclick="showSection('tasks')" id="nav-tasks">✅ Задачи</a>
+
+    <div class="nav-group">Прочее</div>
+    <a href="#" onclick="showSection('calendar')" id="nav-calendar">📅 Календарь</a>
+    <a href="#" onclick="showSection('reports')" id="nav-reports">📊 Отчёты</a>
+    <a href="#" onclick="showSection('health')" id="nav-health">💚 Health</a>
+  </nav>
+
+  <main>
+
+    <!-- AUTH BAR (always visible) -->
+    <div class="auth-bar">
+      <span id="tokenStatus" class="token-status">Не авторизован</span>
+      <span id="tokenDisplay">—</span>
+      <button class="btn-delete" onclick="clearToken()" style="padding:4px 10px;font-size:12px;">Выйти</button>
+    </div>
+
+    <!-- ── AUTH ─────────────────────────────────────────────────── -->
+    <div class="section active" id="section-auth">
+      <h2>🔐 Авторизация</h2>
+      <p class="section-desc">Войдите для получения JWT-токена. Токен автоматически добавляется ко всем запросам.</p>
+
+      <div class="card">
+        <h3>POST /api/auth/login</h3>
+        <p>Получить токен по email и паролю</p>
+        <div class="row">
+          <input id="loginEmail" type="email" placeholder="Email" value="manager@crm.ru" />
+          <input id="loginPassword" type="password" placeholder="Пароль" value="123456" />
+          <button class="btn-post" onclick="doLogin()">Войти</button>
+        </div>
+        <div style="font-size:12px;color:#4a5568;margin-bottom:8px;">
+          Доступные аккаунты (пароль: 123456): manager@crm.ru · manager2@crm.ru · supervisor@crm.ru · admin@crm.ru
+        </div>
+        <div id="r-login" class="result"></div>
+      </div>
+
+      <div class="card">
+        <h3>GET /api/auth/me</h3>
+        <p>Текущий пользователь (требует токен)</p>
+        <button class="btn-get" onclick="request('GET','/api/auth/me','r-me')">Получить</button>
+        <div id="r-me" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── USERS ─────────────────────────────────────────────────── -->
+    <div class="section" id="section-users">
+      <h2>👥 Пользователи</h2>
+      <p class="section-desc">CRUD пользователей. Список — admin/supervisor. Создать/изменить/удалить — только admin.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/users</code>
+        <p>Список всех пользователей</p>
+        <button class="btn-get" onclick="request('GET','/api/users','r-users-list')">Получить список</button>
+        <div id="r-users-list" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/users/:id</code>
+        <p>Один пользователь по ID</p>
+        <div class="row">
+          <input id="getUserId" placeholder="ID пользователя" value="u1" />
+          <button class="btn-get" onclick="request('GET','/api/users/'+getId('getUserId'),'r-users-one')">Получить</button>
+        </div>
+        <div id="r-users-one" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge POST">POST</span><code>/api/users</code>
+        <p>Создать нового пользователя (admin)</p>
+        <textarea id="createUserBody">{
+  "name": "Новый Менеджер",
+  "email": "new@crm.ru",
+  "role": "manager",
+  "phone": "+7 999 000-00-00",
+  "isActive": true
+}</textarea>
+        <br/>
+        <button class="btn-post" onclick="requestBody('POST','/api/users','createUserBody','r-users-create')">Создать</button>
+        <div id="r-users-create" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge PATCH">PATCH</span><code>/api/users/:id</code>
+        <p>Обновить пользователя (admin)</p>
+        <div class="row">
+          <input id="patchUserId" placeholder="ID пользователя" value="u1" />
+        </div>
+        <textarea id="patchUserBody">{"phone": "+7 900 999-88-77"}</textarea>
+        <br/>
+        <button class="btn-patch" onclick="requestBody('PATCH','/api/users/'+getId('patchUserId'),'patchUserBody','r-users-patch')">Обновить</button>
+        <div id="r-users-patch" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge DELETE">DELETE</span><code>/api/users/:id</code>
+        <p>Заблокировать пользователя — isActive = false (admin)</p>
+        <div class="row">
+          <input id="deleteUserId" placeholder="ID пользователя" value="u2" />
+          <button class="btn-delete" onclick="request('DELETE','/api/users/'+getId('deleteUserId'),'r-users-delete')">Заблокировать</button>
+        </div>
+        <div id="r-users-delete" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── CLIENTS ────────────────────────────────────────────────── -->
+    <div class="section" id="section-clients">
+      <h2>🏢 Клиенты</h2>
+      <p class="section-desc">manager видит только своих клиентов; supervisor/admin — всех.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/clients</code>
+        <p>Список клиентов. Query: ?status=lead|active|regular|archived &amp;managerId= &amp;search=</p>
+        <div class="row">
+          <select id="clientsStatus" style="min-width:120px">
+            <option value="">Все статусы</option>
+            <option value="lead">lead</option>
+            <option value="active">active</option>
+            <option value="regular">regular</option>
+            <option value="archived">archived</option>
+          </select>
+          <input id="clientsSearch" placeholder="Поиск..." />
+          <button class="btn-get" onclick="getClients()">Получить список</button>
+        </div>
+        <div id="r-clients-list" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/clients/:id</code>
+        <div class="row">
+          <input id="getClientId" placeholder="ID клиента" value="c1" />
+          <button class="btn-get" onclick="request('GET','/api/clients/'+getId('getClientId'),'r-clients-one')">Получить</button>
+        </div>
+        <div id="r-clients-one" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge POST">POST</span><code>/api/clients</code>
+        <p>Создать клиента</p>
+        <textarea id="createClientBody">{
+  "firstName": "Тест",
+  "lastName": "Клиентов",
+  "company": "ООО Тест",
+  "email": "test@test.ru",
+  "phone": "+7 999 123-45-67",
+  "status": "lead",
+  "source": "Сайт",
+  "tags": ["новый"]
+}</textarea>
+        <br/>
+        <button class="btn-post" onclick="requestBody('POST','/api/clients','createClientBody','r-clients-create')">Создать</button>
+        <div id="r-clients-create" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge PATCH">PATCH</span><code>/api/clients/:id</code>
+        <div class="row">
+          <input id="patchClientId" placeholder="ID клиента" value="c1" />
+        </div>
+        <textarea id="patchClientBody">{"status": "regular", "comment": "Постоянный клиент"}</textarea>
+        <br/>
+        <button class="btn-patch" onclick="requestBody('PATCH','/api/clients/'+getId('patchClientId'),'patchClientBody','r-clients-patch')">Обновить</button>
+        <div id="r-clients-patch" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge DELETE">DELETE</span><code>/api/clients/:id</code>
+        <p>Архивировать клиента (status → archived)</p>
+        <div class="row">
+          <input id="deleteClientId" placeholder="ID клиента" value="c6" />
+          <button class="btn-delete" onclick="request('DELETE','/api/clients/'+getId('deleteClientId'),'r-clients-delete')">Архивировать</button>
+        </div>
+        <div id="r-clients-delete" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── DEALS ──────────────────────────────────────────────────── -->
+    <div class="section" id="section-deals">
+      <h2>💼 Сделки</h2>
+      <p class="section-desc">Смена статуса автоматически создаёт запись в истории. Удаление — только supervisor/admin.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/deals</code>
+        <p>Список сделок. Query: ?status= &amp;managerId= &amp;clientId=</p>
+        <div class="row">
+          <select id="dealsStatus" style="min-width:150px">
+            <option value="">Все статусы</option>
+            <option value="new">new</option>
+            <option value="negotiation">negotiation</option>
+            <option value="proposal_sent">proposal_sent</option>
+            <option value="awaiting_payment">awaiting_payment</option>
+            <option value="won">won</option>
+            <option value="lost">lost</option>
+          </select>
+          <button class="btn-get" onclick="getDeals()">Получить список</button>
+        </div>
+        <div id="r-deals-list" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/deals/:id</code>
+        <div class="row">
+          <input id="getDealId" placeholder="ID сделки" value="d1" />
+          <button class="btn-get" onclick="request('GET','/api/deals/'+getId('getDealId'),'r-deals-one')">Получить</button>
+        </div>
+        <div id="r-deals-one" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/deals/:id/history</code>
+        <p>История изменений статуса сделки</p>
+        <div class="row">
+          <input id="getDealHistoryId" placeholder="ID сделки" value="d1" />
+          <button class="btn-get" onclick="request('GET','/api/deals/'+getId('getDealHistoryId')+'/history','r-deals-history')">История</button>
+        </div>
+        <div id="r-deals-history" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge POST">POST</span><code>/api/deals</code>
+        <textarea id="createDealBody">{
+  "title": "Новая тестовая сделка",
+  "clientId": "c1",
+  "status": "new",
+  "amount": 100000,
+  "deadline": "2026-04-30",
+  "description": "Тестовая сделка"
+}</textarea>
+        <br/>
+        <button class="btn-post" onclick="requestBody('POST','/api/deals','createDealBody','r-deals-create')">Создать</button>
+        <div id="r-deals-create" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge PATCH">PATCH</span><code>/api/deals/:id</code>
+        <p>Обновить сделку. Смена статуса → запись в истории</p>
+        <div class="row">
+          <input id="patchDealId" placeholder="ID сделки" value="d1" />
+        </div>
+        <textarea id="patchDealBody">{"status": "proposal_sent", "amount": 500000}</textarea>
+        <br/>
+        <button class="btn-patch" onclick="requestBody('PATCH','/api/deals/'+getId('patchDealId'),'patchDealBody','r-deals-patch')">Обновить</button>
+        <div id="r-deals-patch" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge DELETE">DELETE</span><code>/api/deals/:id</code>
+        <p>Удалить сделку (supervisor/admin)</p>
+        <div class="row">
+          <input id="deleteDealId" placeholder="ID сделки" value="d6" />
+          <button class="btn-delete" onclick="request('DELETE','/api/deals/'+getId('deleteDealId'),'r-deals-delete')">Удалить</button>
+        </div>
+        <div id="r-deals-delete" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── ACTIVITIES ─────────────────────────────────────────────── -->
+    <div class="section" id="section-activities">
+      <h2>📋 Активности</h2>
+      <p class="section-desc">Звонки, встречи, письма, заметки. Сортируются по дате (новые первые).</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/activities</code>
+        <p>Query: ?type=call|email|meeting|note &amp;clientId= &amp;dealId=</p>
+        <div class="row">
+          <select id="activitiesType" style="min-width:120px">
+            <option value="">Все типы</option>
+            <option value="call">call</option>
+            <option value="email">email</option>
+            <option value="meeting">meeting</option>
+            <option value="note">note</option>
+          </select>
+          <button class="btn-get" onclick="getActivities()">Получить список</button>
+        </div>
+        <div id="r-activities-list" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/activities/:id</code>
+        <div class="row">
+          <input id="getActivityId" placeholder="ID активности" value="a1" />
+          <button class="btn-get" onclick="request('GET','/api/activities/'+getId('getActivityId'),'r-activities-one')">Получить</button>
+        </div>
+        <div id="r-activities-one" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge POST">POST</span><code>/api/activities</code>
+        <textarea id="createActivityBody">{
+  "type": "call",
+  "clientId": "c1",
+  "dealId": "d1",
+  "date": "2026-03-04T10:00:00",
+  "description": "Звонок по вопросу доставки",
+  "result": "Договорились на понедельник"
+}</textarea>
+        <br/>
+        <button class="btn-post" onclick="requestBody('POST','/api/activities','createActivityBody','r-activities-create')">Создать</button>
+        <div id="r-activities-create" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge PATCH">PATCH</span><code>/api/activities/:id</code>
+        <div class="row">
+          <input id="patchActivityId" placeholder="ID активности" value="a1" />
+        </div>
+        <textarea id="patchActivityBody">{"result": "Клиент подтвердил встречу"}</textarea>
+        <br/>
+        <button class="btn-patch" onclick="requestBody('PATCH','/api/activities/'+getId('patchActivityId'),'patchActivityBody','r-activities-patch')">Обновить</button>
+        <div id="r-activities-patch" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge DELETE">DELETE</span><code>/api/activities/:id</code>
+        <div class="row">
+          <input id="deleteActivityId" placeholder="ID активности" value="a6" />
+          <button class="btn-delete" onclick="request('DELETE','/api/activities/'+getId('deleteActivityId'),'r-activities-delete')">Удалить</button>
+        </div>
+        <div id="r-activities-delete" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── TASKS ──────────────────────────────────────────────────── -->
+    <div class="section" id="section-tasks">
+      <h2>✅ Задачи</h2>
+      <p class="section-desc">При смене статуса на done — автоматически ставится completedAt.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/tasks</code>
+        <p>Query: ?status=new|in_progress|done &amp;priority=low|medium|high &amp;assigneeId=</p>
+        <div class="row">
+          <select id="tasksStatus" style="min-width:120px">
+            <option value="">Все статусы</option>
+            <option value="new">new</option>
+            <option value="in_progress">in_progress</option>
+            <option value="done">done</option>
+          </select>
+          <select id="tasksPriority" style="min-width:100px">
+            <option value="">Приоритет</option>
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+          </select>
+          <button class="btn-get" onclick="getTasks()">Получить список</button>
+        </div>
+        <div id="r-tasks-list" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/tasks/:id</code>
+        <div class="row">
+          <input id="getTaskId" placeholder="ID задачи" value="t1" />
+          <button class="btn-get" onclick="request('GET','/api/tasks/'+getId('getTaskId'),'r-tasks-one')">Получить</button>
+        </div>
+        <div id="r-tasks-one" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge POST">POST</span><code>/api/tasks</code>
+        <textarea id="createTaskBody">{
+  "title": "Тестовая задача",
+  "priority": "medium",
+  "clientId": "c1",
+  "deadline": "2026-03-10T18:00:00",
+  "description": "Описание задачи"
+}</textarea>
+        <br/>
+        <button class="btn-post" onclick="requestBody('POST','/api/tasks','createTaskBody','r-tasks-create')">Создать</button>
+        <div id="r-tasks-create" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge PATCH">PATCH</span><code>/api/tasks/:id</code>
+        <p>Смена статуса на done → автоматически completedAt</p>
+        <div class="row">
+          <input id="patchTaskId" placeholder="ID задачи" value="t1" />
+        </div>
+        <textarea id="patchTaskBody">{"status": "done"}</textarea>
+        <br/>
+        <button class="btn-patch" onclick="requestBody('PATCH','/api/tasks/'+getId('patchTaskId'),'patchTaskBody','r-tasks-patch')">Обновить</button>
+        <div id="r-tasks-patch" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge DELETE">DELETE</span><code>/api/tasks/:id</code>
+        <div class="row">
+          <input id="deleteTaskId" placeholder="ID задачи" value="t5" />
+          <button class="btn-delete" onclick="request('DELETE','/api/tasks/'+getId('deleteTaskId'),'r-tasks-delete')">Удалить</button>
+        </div>
+        <div id="r-tasks-delete" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── CALENDAR ───────────────────────────────────────────────── -->
+    <div class="section" id="section-calendar">
+      <h2>📅 Календарь</h2>
+      <p class="section-desc">События = задачи с дедлайном + активности, попадающие в диапазон дат.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/calendar?from=&amp;to=</code>
+        <p>Список событий за период (задачи + активности)</p>
+        <div class="row">
+          <input id="calFrom" type="date" value="2026-03-01" />
+          <input id="calTo" type="date" value="2026-03-31" />
+          <button class="btn-get" onclick="getCalendar()">Получить события</button>
+        </div>
+        <div id="r-calendar" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── REPORTS ────────────────────────────────────────────────── -->
+    <div class="section" id="section-reports">
+      <h2>📊 Отчёты</h2>
+      <p class="section-desc">Доступны только supervisor и admin. Менеджер получит 403.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/reports/managers</code>
+        <p>Статистика по каждому менеджеру: клиенты, сделки, выручка, активности</p>
+        <button class="btn-get" onclick="request('GET','/api/reports/managers','r-reports-managers')">Получить</button>
+        <div id="r-reports-managers" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/reports/funnel</code>
+        <p>Воронка продаж: количество и сумма сделок по каждому статусу</p>
+        <button class="btn-get" onclick="request('GET','/api/reports/funnel','r-reports-funnel')">Получить</button>
+        <div id="r-reports-funnel" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/reports/clients</code>
+        <p>Клиенты по статусам и источникам привлечения</p>
+        <button class="btn-get" onclick="request('GET','/api/reports/clients','r-reports-clients')">Получить</button>
+        <div id="r-reports-clients" class="result"></div>
+      </div>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/reports/activities</code>
+        <p>Активности по типам и менеджерам</p>
+        <button class="btn-get" onclick="request('GET','/api/reports/activities','r-reports-activities')">Получить</button>
+        <div id="r-reports-activities" class="result"></div>
+      </div>
+    </div>
+
+    <!-- ── HEALTH ─────────────────────────────────────────────────── -->
+    <div class="section" id="section-health">
+      <h2>💚 Health Check</h2>
+      <p class="section-desc">Проверка доступности сервера.</p>
+
+      <div class="card">
+        <span class="endpoint-badge GET">GET</span><code>/api/health</code>
+        <p>Не требует токена</p>
+        <button class="btn-get" onclick="request('GET','/api/health','r-health',false)">Проверить</button>
+        <div id="r-health" class="result"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const BASE = 'http://localhost:3001'
+  let token = null
+
+  // ─── Navigation ──────────────────────────────────────────────────────────────
+  function showSection(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'))
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'))
+    document.getElementById('section-' + name).classList.add('active')
+    document.getElementById('nav-' + name).classList.add('active')
+    return false
+  }
+
+  // ─── Token management ────────────────────────────────────────────────────────
+  function setToken(t) {
+    token = t
+    const status = document.getElementById('tokenStatus')
+    const display = document.getElementById('tokenDisplay')
+    if (t) {
+      status.textContent = '✅ Авторизован'
+      status.className = 'token-status has-token'
+      display.textContent = t.substring(0, 60) + '...'
+    } else {
+      status.textContent = 'Не авторизован'
+      status.className = 'token-status'
+      display.textContent = '—'
+    }
+  }
+  function clearToken() { setToken(null) }
+
+  // ─── Display result ──────────────────────────────────────────────────────────
+  function showResult(id, data, ok) {
+    const el = document.getElementById(id)
+    el.textContent = JSON.stringify(data, null, 2)
+    el.className = 'result visible ' + (ok ? 'ok' : 'err')
+  }
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────────
+  function getId(inputId) {
+    return document.getElementById(inputId).value.trim()
+  }
+
+  function headers(withAuth = true) {
+    const h = { 'Content-Type': 'application/json' }
+    if (withAuth && token) h['Authorization'] = 'Bearer ' + token
+    return h
+  }
+
+  // ─── Generic request ─────────────────────────────────────────────────────────
+  async function request(method, path, resultId, withAuth = true) {
+    try {
+      const res = await fetch(BASE + path, { method, headers: headers(withAuth) })
+      const data = await res.json()
+      showResult(resultId, data, res.ok)
+    } catch (e) {
+      showResult(resultId, { error: 'Ошибка соединения. Сервер запущен?', detail: e.message }, false)
+    }
+  }
+
+  async function requestBody(method, path, bodyId, resultId, withAuth = true) {
+    try {
+      const body = document.getElementById(bodyId).value
+      const parsed = JSON.parse(body)
+      const res = await fetch(BASE + path, {
+        method,
+        headers: headers(withAuth),
+        body: JSON.stringify(parsed),
+      })
+      const data = await res.json()
+      showResult(resultId, data, res.ok)
+    } catch (e) {
+      showResult(resultId, { error: 'Ошибка: ' + e.message }, false)
+    }
+  }
+
+  // ─── Auth ─────────────────────────────────────────────────────────────────────
+  async function doLogin() {
+    const email = document.getElementById('loginEmail').value
+    const password = document.getElementById('loginPassword').value
+    try {
+      const res = await fetch(BASE + '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const data = await res.json()
+      showResult('r-login', data, res.ok)
+      if (res.ok && data.token) setToken(data.token)
+    } catch (e) {
+      showResult('r-login', { error: 'Ошибка соединения. Сервер запущен?', detail: e.message }, false)
+    }
+  }
+
+  // ─── Clients with filters ─────────────────────────────────────────────────────
+  function getClients() {
+    const status = document.getElementById('clientsStatus').value
+    const search = document.getElementById('clientsSearch').value
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    if (search) params.set('search', search)
+    const q = params.toString()
+    request('GET', '/api/clients' + (q ? '?' + q : ''), 'r-clients-list')
+  }
+
+  // ─── Deals with filters ───────────────────────────────────────────────────────
+  function getDeals() {
+    const status = document.getElementById('dealsStatus').value
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    const q = params.toString()
+    request('GET', '/api/deals' + (q ? '?' + q : ''), 'r-deals-list')
+  }
+
+  // ─── Activities with filters ──────────────────────────────────────────────────
+  function getActivities() {
+    const type = document.getElementById('activitiesType').value
+    const params = new URLSearchParams()
+    if (type) params.set('type', type)
+    const q = params.toString()
+    request('GET', '/api/activities' + (q ? '?' + q : ''), 'r-activities-list')
+  }
+
+  // ─── Tasks with filters ───────────────────────────────────────────────────────
+  function getTasks() {
+    const status = document.getElementById('tasksStatus').value
+    const priority = document.getElementById('tasksPriority').value
+    const params = new URLSearchParams()
+    if (status) params.set('status', status)
+    if (priority) params.set('priority', priority)
+    const q = params.toString()
+    request('GET', '/api/tasks' + (q ? '?' + q : ''), 'r-tasks-list')
+  }
+
+  // ─── Calendar ─────────────────────────────────────────────────────────────────
+  function getCalendar() {
+    const from = document.getElementById('calFrom').value
+    const to = document.getElementById('calTo').value
+    const params = new URLSearchParams()
+    if (from) params.set('from', from)
+    if (to) params.set('to', to + 'T23:59:59')
+    request('GET', '/api/calendar?' + params.toString(), 'r-calendar')
+  }
+</script>
+</body>
+</html>

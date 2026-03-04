@@ -28,3 +28,16 @@ dist-ssr
 .env
 .env.local
 .env.production
+
+# Database
+**/prisma/dev.db
+**/prisma/dev.db-journal
+**/prisma/dev.db-wal
+**/prisma/dev.db-shm
+
+# Windows artifacts
+nul
+backend/nul
+
+# Vite cache
+.vite/

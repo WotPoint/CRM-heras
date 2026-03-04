@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String  @id
+  name         String
+  email        String  @unique
+  phone        String?
+  role         String  // manager | supervisor | admin
+  avatarUrl    String?
+  isActive     Boolean @default(true)
+  createdAt    String
+  lastLoginAt  String?
+  supervisorId String?
+
+  supervisor    User?              @relation("UserSupervisor", fields: [supervisorId], references: [id])
+  reports       User[]             @relation("UserSupervisor")
+  clients       Client[]           @relation("ClientManager")
+  deals         Deal[]             @relation("DealManager")
+  activities    Activity[]         @relation("ActivityManager")
+  assignedTasks Task[]             @relation("TaskAssignee")
+  statusChanges DealStatusChange[] @relation("StatusChanger")
+}
+
+model Client {
+  id            String  @id
+  firstName     String
+  lastName      String
+  company       String?
+  email         String?
+  phone         String?
+  address       String?
+  status        String  // lead | active | regular | archived
+  managerId     String
+  tags          String  @default("[]") // JSON array stored as string
+  source        String?
+  comment       String?
+  createdAt     String
+  lastContactAt String?
+
+  manager    User       @relation("ClientManager", fields: [managerId], references: [id])
+  deals      Deal[]     @relation("DealClient")
+  activities Activity[] @relation("ActivityClient")
+  tasks      Task[]     @relation("TaskClient")
+}
+
+model Deal {
+  id          String  @id
+  title       String
+  clientId    String
+  managerId   String
+  status      String  // new | negotiation | proposal_sent | awaiting_payment | won | lost
+  amount      Float
+  deadline    String?
+  description String?
+  createdAt   String
+  updatedAt   String
+
+  client        Client             @relation("DealClient", fields: [clientId], references: [id])
+  manager       User               @relation("DealManager", fields: [managerId], references: [id])
+  statusChanges DealStatusChange[] @relation("StatusChangeDeal")
+  activities    Activity[]         @relation("ActivityDeal")
+  tasks         Task[]             @relation("TaskDeal")
+}
+
+model DealStatusChange {
+  id         String  @id
+  dealId     String
+  fromStatus String?
+  toStatus   String
+  changedBy  String
+  changedAt  String
+
+  deal    Deal @relation("StatusChangeDeal", fields: [dealId], references: [id])
+  changer User @relation("StatusChanger", fields: [changedBy], references: [id])
+}
+
+model Activity {
+  id          String  @id
+  type        String  // call | email | meeting | note | status_change
+  managerId   String
+  clientId    String?
+  dealId      String?
+  date        String
+  description String
+  result      String?
+  createdAt   String
+
+  manager User    @relation("ActivityManager", fields: [managerId], references: [id])
+  client  Client? @relation("ActivityClient", fields: [clientId], references: [id])
+  deal    Deal?   @relation("ActivityDeal", fields: [dealId], references: [id])
+}
+
+model Task {
+  id          String  @id
+  title       String
+  description String?
+  status      String  // new | in_progress | done
+  priority    String  // low | medium | high
+  assigneeId  String
+  clientId    String?
+  dealId      String?
+  deadline    String?
+  createdAt   String
+  completedAt String?
+
+  assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  client   Client? @relation("TaskClient", fields: [clientId], references: [id])
+  deal     Deal?   @relation("TaskDeal", fields: [dealId], references: [id])
+}
