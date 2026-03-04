@@ -79,6 +79,7 @@ export function AddClientModal({ open, onClose, onSubmit }: Props) {
               name="lastName"
               label="Фамилия"
               rules={[
+                { required: true, message: 'Введите фамилию' },
                 { min: 2, message: 'Минимум 2 символа' },
                 { whitespace: true, message: 'Фамилия не может состоять только из пробелов' },
               ]}

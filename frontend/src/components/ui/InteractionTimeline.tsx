@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Timeline, Typography, Button, Form, Input, Select, DatePicker, Space, Tag, Tooltip } from 'antd'
+import { Timeline, Typography, Button, Form, Input, Select, DatePicker, Space, Tag, Tooltip, theme } from 'antd'
 import {
   PhoneOutlined, MailOutlined, TeamOutlined,
   FileTextOutlined, PlusOutlined, SwapOutlined,
@@ -30,6 +30,7 @@ interface Props {
 
 export function InteractionTimeline({ activities, onAdd, clientId, dealId }: Props) {
   const { currentUser } = useAuthStore()
+  const { token: tok } = theme.useToken()
   const [showForm, setShowForm] = useState(false)
   const [form] = Form.useForm()
 
@@ -90,11 +91,11 @@ export function InteractionTimeline({ activities, onAdd, clientId, dealId }: Pro
             <div
               style={{
                 marginTop: 4, padding: '4px 10px',
-                background: '#f6ffed', borderRadius: 6,
+                background: 'rgba(82,196,26,0.1)', borderRadius: 6,
                 borderLeft: '3px solid #52c41a',
               }}
             >
-              <Text style={{ fontSize: 12, color: '#389e0d' }}>
+              <Text style={{ fontSize: 12, color: '#52c41a' }}>
                 Результат: {a.result}
               </Text>
             </div>
@@ -116,8 +117,8 @@ export function InteractionTimeline({ activities, onAdd, clientId, dealId }: Pro
           ) : (
             <div
               style={{
-                padding: 16, background: '#fafafa',
-                borderRadius: 10, border: '1px solid #e8e8e8', marginBottom: 16,
+                padding: 16, background: tok.colorFillSecondary,
+                borderRadius: 10, border: `1px solid ${tok.colorBorderSecondary}`, marginBottom: 16,
               }}
             >
               <Form form={form} layout="vertical" size="small">

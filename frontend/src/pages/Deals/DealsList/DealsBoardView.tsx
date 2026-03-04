@@ -7,7 +7,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useState } from 'react'
-import { Card, Typography, Tag, Tooltip, Badge } from 'antd'
+import { Card, Typography, Tag, Tooltip, Badge, theme } from 'antd'
 import { CalendarOutlined, WarningOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -115,6 +115,7 @@ function KanbanColumn({
   deals: Deal[]
 }) {
   const { setNodeRef, isOver } = useSortable({ id: status })
+  const { token: t } = theme.useToken()
   const totalAmount = deals.reduce((s, d) => s + (d.amount ?? 0), 0)
 
   return (
@@ -124,7 +125,7 @@ function KanbanColumn({
         minWidth: 230,
         maxWidth: 260,
         flex: '0 0 240px',
-        background: isOver ? '#f0f5ff' : '#f7f8fa',
+        background: isOver ? t.colorPrimaryBg : t.colorFillSecondary,
         borderRadius: 12,
         padding: '12px 10px',
         border: isOver ? `2px dashed ${color}` : '2px solid transparent',
@@ -154,7 +155,7 @@ function KanbanColumn({
 
       {deals.length === 0 && (
         <div style={{
-          height: 60, border: '1.5px dashed #d9d9d9', borderRadius: 8,
+          height: 60, border: `1.5px dashed ${t.colorBorder}`, borderRadius: 8,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <Text type="secondary" style={{ fontSize: 12 }}>Перетащите сюда</Text>

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Card, Typography, Button, Select, Space, Tag, Tooltip, DatePicker, Divider, message } from 'antd'
+import { Card, Typography, Button, Select, Space, Tag, Tooltip, DatePicker, Divider, message, theme } from 'antd'
 import { PlusOutlined, PhoneOutlined, MailOutlined, TeamOutlined, FileTextOutlined, SwapOutlined, FilterOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -16,12 +16,12 @@ const { Title, Text, Paragraph } = Typography
 const { Option } = Select
 const { RangePicker } = DatePicker
 
-const ACTIVITY_CONFIG: Record<ActivityType, { icon: React.ReactNode; color: string; label: string; bg: string }> = {
-  call:          { icon: <PhoneOutlined />,    color: '#52c41a', bg: '#f6ffed', label: 'Звонок'        },
-  email:         { icon: <MailOutlined />,     color: '#1677ff', bg: '#e6f4ff', label: 'Email'         },
-  meeting:       { icon: <TeamOutlined />,     color: '#722ed1', bg: '#f9f0ff', label: 'Встреча'       },
-  note:          { icon: <FileTextOutlined />, color: '#fa8c16', bg: '#fff7e6', label: 'Заметка'       },
-  status_change: { icon: <SwapOutlined />,     color: '#13c2c2', bg: '#e6fffb', label: 'Смена статуса' },
+const ACTIVITY_CONFIG: Record<ActivityType, { icon: React.ReactNode; color: string; label: string }> = {
+  call:          { icon: <PhoneOutlined />,    color: '#52c41a', label: 'Звонок'        },
+  email:         { icon: <MailOutlined />,     color: '#1677ff', label: 'Email'         },
+  meeting:       { icon: <TeamOutlined />,     color: '#722ed1', label: 'Встреча'       },
+  note:          { icon: <FileTextOutlined />, color: '#fa8c16', label: 'Заметка'       },
+  status_change: { icon: <SwapOutlined />,     color: '#13c2c2', label: 'Смена статуса' },
 }
 
 const TYPE_FILTERS = [
@@ -32,6 +32,7 @@ const TYPE_FILTERS = [
 export default function ActivitiesPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const { token: tok } = theme.useToken()
   const { canViewManager, hasRole } = useAuthStore()
   const { activities, clients, deals, addActivity } = useDataStore()
 
@@ -108,7 +109,7 @@ export default function ActivitiesPage() {
           <div key={dayKey} style={{ marginBottom: 24 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
               <Text strong style={{ fontSize: 14, color: '#333' }}>{getDayLabel(dayKey)}</Text>
-              <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+              <div style={{ flex: 1, height: 1, background: tok.colorBorderSecondary }} />
               <Text type="secondary" style={{ fontSize: 12 }}>{dayActivities.length} {dayActivities.length === 1 ? 'запись' : 'записей'}</Text>
             </div>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
@@ -120,7 +121,7 @@ export default function ActivitiesPage() {
                   <Card key={activity.id} size="small" style={{ borderRadius: 10, borderLeft: `3px solid ${cfg.color}` }} styles={{ body: { padding: '12px 16px' } }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                       <div style={{ display: 'flex', gap: 12, flex: 1 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, fontSize: 16 }}>{cfg.icon}</div>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, flexShrink: 0, background: cfg.color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', color: cfg.color, fontSize: 16 }}>{cfg.icon}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
                             <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.label}</Tag>
@@ -130,8 +131,8 @@ export default function ActivitiesPage() {
                           </div>
                           <Paragraph style={{ margin: 0, fontSize: 13 }}>{activity.description}</Paragraph>
                           {activity.result && (
-                            <div style={{ marginTop: 6, padding: '4px 10px', background: '#f6ffed', borderRadius: 6, borderLeft: '3px solid #52c41a' }}>
-                              <Text style={{ fontSize: 12, color: '#389e0d' }}>Результат: {activity.result}</Text>
+                            <div style={{ marginTop: 6, padding: '4px 10px', background: 'rgba(82,196,26,0.1)', borderRadius: 6, borderLeft: '3px solid #52c41a' }}>
+                              <Text style={{ fontSize: 12, color: '#52c41a' }}>Результат: {activity.result}</Text>
                             </div>
                           )}
                         </div>

@@ -1,4 +1,4 @@
-import { Card, Typography, Row, Col, Table, Space, Tag, Progress, Button, Alert } from 'antd'
+import { Card, Typography, Row, Col, Table, Space, Tag, Progress, Button, Alert, theme } from 'antd'
 import { TeamOutlined, DollarOutlined, RiseOutlined, WarningOutlined, BarChartOutlined, TrophyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -18,6 +18,7 @@ interface ManagerStat { managerId: string; name: string; clients: number; active
 
 export function SupervisorDashboard() {
   const navigate = useNavigate()
+  const { token: tok } = theme.useToken()
   const { currentUser } = useAuthStore()
   const { clients, deals, tasks, activities } = useDataStore()
 
@@ -104,7 +105,7 @@ export function SupervisorDashboard() {
               {recentActivities.map((a) => {
                 const client = a.clientId ? clients.find((c) => c.id === a.clientId) : null
                 return (
-                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 8, borderBottom: '1px solid #f5f5f5' }}>
+                  <div key={a.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: 8, borderBottom: `1px solid ${tok.colorBorderSecondary}` }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 2 }}>
                         <UserAvatar userId={a.managerId} size={20} />

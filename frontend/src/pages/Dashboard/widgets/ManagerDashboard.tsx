@@ -1,4 +1,4 @@
-import { Card, Typography, Checkbox, Space, Tag, Empty, Row, Col, Button, Tooltip } from 'antd'
+import { Card, Typography, Checkbox, Space, Tag, Empty, Row, Col, Button, Tooltip, theme } from 'antd'
 import { CheckSquareOutlined, DollarOutlined, CalendarOutlined, TeamOutlined, TrophyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -12,6 +12,7 @@ const { Text, Title } = Typography
 
 export function ManagerDashboard() {
   const navigate = useNavigate()
+  const { token: tok } = theme.useToken()
   const { currentUser } = useAuthStore()
   const { clients, deals, tasks, activities } = useDataStore()
   const uid = currentUser?.id ?? ''
@@ -49,7 +50,7 @@ export function ManagerDashboard() {
             {todayTasks.length === 0 ? <Empty description="Задач на сегодня нет" image={Empty.PRESENTED_IMAGE_SIMPLE} /> : (
               <Space direction="vertical" style={{ width: '100%' }} size={8}>
                 {todayTasks.map((t) => (
-                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f5f5f5' }}>
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${tok.colorBorderSecondary}` }}>
                     <Checkbox checked={false} />
                     <div style={{ flex: 1 }}>
                       <Text style={{ fontSize: 13 }}>{t.title}</Text>
@@ -70,7 +71,7 @@ export function ManagerDashboard() {
                   const client = clients.find((c) => c.id === d.clientId)
                   const isOverdue = d.deadline && dayjs(d.deadline).isBefore(dayjs())
                   return (
-                    <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: '#fafafa', border: '1px solid #f0f0f0' }}>
+                    <div key={d.id} onClick={() => navigate(`/deals/${d.id}`)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: tok.colorFillQuaternary, border: `1px solid ${tok.colorBorderSecondary}` }}>
                       <div>
                         <Text strong style={{ fontSize: 13, display: 'block' }}>{d.title}</Text>
                         {client && <Text type="secondary" style={{ fontSize: 12 }}>{client.firstName} {client.lastName}</Text>}
@@ -95,7 +96,7 @@ export function ManagerDashboard() {
                   const client = a.clientId ? clients.find((c) => c.id === a.clientId) : null
                   return (
                     <Col key={a.id} xs={24} sm={8}>
-                      <div style={{ padding: '12px 14px', borderRadius: 10, background: '#f9f0ff', border: '1px solid #d3adf7' }}>
+                      <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(114,46,209,0.08)', border: '1px solid rgba(114,46,209,0.25)' }}>
                         <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>{dayjs(a.date).format('D MMM, HH:mm')}</Text>
                         <Text style={{ fontSize: 13, display: 'block', marginTop: 2 }}>{a.description}</Text>
                         {client && <Text style={{ fontSize: 12, color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(`/clients/${client.id}`)}>{client.firstName} {client.lastName}</Text>}
