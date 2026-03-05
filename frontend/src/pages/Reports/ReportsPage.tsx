@@ -4,7 +4,6 @@ import { BarChartOutlined, TeamOutlined, UserOutlined, CalendarOutlined, TrophyO
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 
-import { MOCK_USERS } from '@/mocks'
 import { useDataStore } from '@/store/dataStore'
 import type { DealStatus } from '@/types'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -26,9 +25,9 @@ interface ManagerRow {
 export default function ReportsPage() {
   const [period, setPeriod] = useState(MONTH_OPTIONS[0].value)
   const [managerFilter, setManagerFilter] = useState('')
-  const { deals, clients, activities } = useDataStore()
+  const { deals, clients, activities, users } = useDataStore()
 
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
   const periodStart = dayjs(period + '-01').startOf('month')
   const periodEnd = dayjs(period + '-01').endOf('month')
   const inPeriod = (date: string) => dayjs(date).isAfter(periodStart) && dayjs(date).isBefore(periodEnd)

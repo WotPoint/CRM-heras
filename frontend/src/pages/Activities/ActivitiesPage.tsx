@@ -4,7 +4,6 @@ import { PlusOutlined, PhoneOutlined, MailOutlined, TeamOutlined, FileTextOutlin
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import type { Activity, ActivityType } from '@/types'
@@ -34,13 +33,13 @@ export default function ActivitiesPage() {
   const [searchParams] = useSearchParams()
   const { token: tok } = theme.useToken()
   const { canViewManager, hasRole } = useAuthStore()
-  const { activities, clients, deals, addActivity } = useDataStore()
+  const { activities, clients, deals, addActivity, users } = useDataStore()
 
   const [typeFilter, setTypeFilter] = useState<ActivityType | ''>('')
   const [managerFilter, setManagerFilter] = useState('')
   const [dateRange, setDateRange] = useState<[dayjs.Dayjs | null, dayjs.Dayjs | null]>([null, null])
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === '1')
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
 
   const filtered = useMemo(() => {
     return activities

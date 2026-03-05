@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
+import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter, fmtClient, serializeTags } from '../lib/helpers.js'
 
 const router = Router()
@@ -104,16 +105,15 @@ router.patch('/:id', async (req: Request, res: Response) => {
 })
 
 /**
- * DELETE /api/clients/:id  — archive (status → 'archived')
+ * DELETE /api/clients/:id  (supervisor + admin only)
  */
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', requireRole('admin', 'supervisor'), async (req: Request, res: Response) => {
   try {
     const row = await prisma.client.findUnique({ where: { id: req.params.id } })
     if (!row) { res.status(404).json({ error: 'Клиент не найден' }); return }
-    if (!canView(req.user!.role, req.user!.userId, row.managerId)) { res.status(403).json({ error: 'Нет доступа' }); return }
 
-    const updated = await prisma.client.update({ where: { id: req.params.id }, data: { status: 'archived' } })
-    res.json({ message: 'Клиент архивирован', client: fmtClient(updated as Record<string, unknown>) })
+    await prisma.client.delete({ where: { id: req.params.id } })
+    res.json({ message: 'Клиент удалён' })
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 

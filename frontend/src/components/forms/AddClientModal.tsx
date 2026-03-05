@@ -1,6 +1,6 @@
 import { Modal, Form, Input, Select, Row, Col } from 'antd'
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
+import { useDataStore } from '@/store/dataStore'
 import type { Client, ClientStatus } from '@/types'
 import type { Rule } from 'antd/es/form'
 
@@ -34,7 +34,8 @@ export function AddClientModal({ open, onClose, onSubmit }: Props) {
   const [form] = Form.useForm()
   const { currentUser, hasRole } = useAuthStore()
 
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const { users } = useDataStore()
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
 
   const handleOk = () => {
     form.validateFields().then((values) => {

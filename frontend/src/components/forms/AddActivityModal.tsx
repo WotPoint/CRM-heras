@@ -1,6 +1,6 @@
 import { Modal, Form, Input, Select, DatePicker, Row, Col } from 'antd'
-import { MOCK_CLIENTS, MOCK_DEALS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
+import { useDataStore } from '@/store/dataStore'
 import type { Activity, ActivityType } from '@/types'
 import dayjs from 'dayjs'
 
@@ -26,8 +26,10 @@ export function AddActivityModal({ open, onClose, onSubmit, initialClientId, ini
   const [form] = Form.useForm()
   const { currentUser, canViewManager } = useAuthStore()
 
-  const clients = MOCK_CLIENTS.filter((c) => canViewManager(c.managerId))
-  const deals = MOCK_DEALS.filter((d) => canViewManager(d.managerId))
+  const allClients = useDataStore((s) => s.clients)
+  const allDeals = useDataStore((s) => s.deals)
+  const clients = allClients.filter((c) => canViewManager(c.managerId))
+  const deals = allDeals.filter((d) => canViewManager(d.managerId))
 
   const handleOk = () => {
     form.validateFields().then((values) => {

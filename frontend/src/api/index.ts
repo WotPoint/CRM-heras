@@ -23,6 +23,7 @@ export const clientsApi = {
     apiFetch<Client>('/api/clients', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Client>) =>
     apiFetch<Client>(`/api/clients/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string) => apiFetch<void>(`/api/clients/${id}`, { method: 'DELETE' }),
 }
 
 export const dealsApi = {
@@ -31,6 +32,7 @@ export const dealsApi = {
     apiFetch<Deal>('/api/deals', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Deal>) =>
     apiFetch<Deal>(`/api/deals/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string) => apiFetch<void>(`/api/deals/${id}`, { method: 'DELETE' }),
   history: (id: string) => apiFetch<DealStatusChange[]>(`/api/deals/${id}/history`),
 }
 
@@ -46,4 +48,5 @@ export const tasksApi = {
     apiFetch<Task>('/api/tasks', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Task>) =>
     apiFetch<Task>(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  delete: (id: string) => apiFetch<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
 }

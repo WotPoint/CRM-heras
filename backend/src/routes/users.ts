@@ -9,11 +9,14 @@ const router = Router()
 router.use(authenticate)
 
 /**
- * GET /api/users  (admin + supervisor)
+ * GET /api/users
+ * admin/supervisor — all users; manager — active users only (for dropdowns)
  */
-router.get('/', requireRole('admin', 'supervisor'), async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
-    res.json(await prisma.user.findMany({ orderBy: { createdAt: 'asc' } }))
+    const { role } = req.user!
+    const where = (role === 'admin' || role === 'supervisor') ? {} : { isActive: true }
+    res.json(await prisma.user.findMany({ where, orderBy: { createdAt: 'asc' } }))
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 

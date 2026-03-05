@@ -1,8 +1,9 @@
 import { create } from 'zustand'
-import { clientsApi, dealsApi, activitiesApi, tasksApi } from '@/api'
-import type { Client, Deal, Activity, Task } from '@/types'
+import { usersApi, clientsApi, dealsApi, activitiesApi, tasksApi } from '@/api'
+import type { User, Client, Deal, Activity, Task } from '@/types'
 
 interface DataState {
+  users: User[]
   clients: Client[]
   deals: Deal[]
   activities: Activity[]
@@ -16,17 +17,21 @@ interface DataState {
 
   addClient: (data: Partial<Client>) => Promise<Client>
   updateClient: (id: string, data: Partial<Client>) => Promise<Client>
+  deleteClient: (id: string) => Promise<void>
 
   addDeal: (data: Partial<Deal>) => Promise<Deal>
   updateDeal: (id: string, data: Partial<Deal>) => Promise<Deal>
+  deleteDeal: (id: string) => Promise<void>
 
   addActivity: (data: Partial<Activity>) => Promise<Activity>
 
   addTask: (data: Partial<Task>) => Promise<Task>
   updateTask: (id: string, data: Partial<Task>) => Promise<Task>
+  deleteTask: (id: string) => Promise<void>
 }
 
 export const useDataStore = create<DataState>()((set, get) => ({
+  users: [],
   clients: [],
   deals: [],
   activities: [],
@@ -36,16 +41,17 @@ export const useDataStore = create<DataState>()((set, get) => ({
   loadError: null,
 
   loadAll: async () => {
-    if (get().loading) return
+    if (get().loading || get().loaded) return
     set({ loading: true, loadError: null })
     try {
-      const [clients, deals, activities, tasks] = await Promise.all([
+      const [users, clients, deals, activities, tasks] = await Promise.all([
+        usersApi.list(),
         clientsApi.list(),
         dealsApi.list(),
         activitiesApi.list(),
         tasksApi.list(),
       ])
-      set({ clients, deals, activities, tasks, loaded: true })
+      set({ users, clients, deals, activities, tasks, loaded: true })
     } catch (e) {
       set({ loadError: (e as Error).message || 'Не удалось загрузить данные' })
     } finally {
@@ -70,6 +76,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
     return client
   },
 
+  deleteClient: async (id) => {
+    await clientsApi.delete(id)
+    set((s) => ({ clients: s.clients.filter((c) => c.id !== id) }))
+  },
+
   addDeal: async (data) => {
     const deal = await dealsApi.create(data)
     set((s) => ({ deals: [deal, ...s.deals] }))
@@ -80,6 +91,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const deal = await dealsApi.update(id, data)
     set((s) => ({ deals: s.deals.map((d) => (d.id === id ? deal : d)) }))
     return deal
+  },
+
+  deleteDeal: async (id) => {
+    await dealsApi.delete(id)
+    set((s) => ({ deals: s.deals.filter((d) => d.id !== id) }))
   },
 
   addActivity: async (data) => {
@@ -98,5 +114,10 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const task = await tasksApi.update(id, data)
     set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? task : t)) }))
     return task
+  },
+
+  deleteTask: async (id) => {
+    await tasksApi.delete(id)
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
   },
 }))

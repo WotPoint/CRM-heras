@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -20,9 +19,9 @@ export function SupervisorDashboard() {
   const navigate = useNavigate()
   const { token: tok } = theme.useToken()
   const { currentUser } = useAuthStore()
-  const { clients, deals, tasks, activities } = useDataStore()
+  const { clients, deals, tasks, activities, users } = useDataStore()
 
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
 
   const managerStats: ManagerStat[] = managers.map((m) => {
     const mDeals = deals.filter((d) => d.managerId === m.id)

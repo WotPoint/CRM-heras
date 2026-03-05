@@ -1,18 +1,17 @@
 import { useMemo, useState } from 'react'
 import {
   Button, Input, Select, Space, Table, Card, Row, Col,
-  Typography, Tooltip, Segmented, Tag, message,
+  Typography, Tooltip, Segmented, Tag, message, Popconfirm,
 } from 'antd'
 import {
   PlusOutlined, SearchOutlined, AppstoreOutlined,
-  UnorderedListOutlined, PhoneOutlined, MailOutlined,
+  UnorderedListOutlined, PhoneOutlined, MailOutlined, DeleteOutlined,
 } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import type { Client, ClientStatus } from '@/types'
@@ -39,7 +38,7 @@ const CLIENT_STATUS_FILTER: { value: ClientStatus | ''; label: string }[] = [
 export default function ClientsListPage() {
   const navigate = useNavigate()
   const { canViewManager, hasRole, currentUser } = useAuthStore()
-  const { clients, addClient } = useDataStore()
+  const { clients, addClient, deleteClient, users } = useDataStore()
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<ClientStatus | ''>('')
@@ -47,7 +46,13 @@ export default function ClientsListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [addOpen, setAddOpen] = useState(false)
 
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
+  const canDelete = hasRole('supervisor', 'admin')
+
+  const handleDelete = async (id: string) => {
+    try { await deleteClient(id); message.success('Клиент удалён') }
+    catch (e) { message.error((e as Error).message) }
+  }
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
@@ -157,6 +162,23 @@ export default function ClientsListPage() {
         </Space>
       ),
     },
+    ...(canDelete ? [{
+      title: '',
+      key: 'actions',
+      width: 48,
+      render: (_: unknown, c: Client) => (
+        <Popconfirm
+          title="Удалить клиента?"
+          description="Клиент и все связанные данные будут удалены."
+          onConfirm={(e) => { e?.stopPropagation(); handleDelete(c.id) }}
+          okText="Удалить"
+          cancelText="Отмена"
+          okButtonProps={{ danger: true }}
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+        </Popconfirm>
+      ),
+    }] : []),
   ]
 
   // ── Карточный вид ────────────────────────────────────────

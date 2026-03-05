@@ -1,14 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Button, Input, Select, Space, Table, Card,
-  Typography, Tooltip, Segmented, message,
+  Typography, Tooltip, Segmented, message, Popconfirm,
 } from 'antd'
-import { PlusOutlined, SearchOutlined, TableOutlined, ProjectOutlined } from '@ant-design/icons'
+import { PlusOutlined, SearchOutlined, TableOutlined, ProjectOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import type { Deal, DealStatus } from '@/types'
@@ -33,7 +32,7 @@ export default function DealsListPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { canViewManager, hasRole, currentUser } = useAuthStore()
-  const { deals, clients, addDeal, updateDeal } = useDataStore()
+  const { deals, clients, addDeal, updateDeal, deleteDeal, users } = useDataStore()
 
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<DealStatus | ''>('')
@@ -41,7 +40,13 @@ export default function DealsListPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('board')
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === '1')
   const initialClientId = searchParams.get('clientId') ?? undefined
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
+  const canDelete = hasRole('supervisor', 'admin')
+
+  const handleDelete = async (id: string) => {
+    try { await deleteDeal(id); message.success('Сделка удалена') }
+    catch (e) { message.error((e as Error).message) }
+  }
 
   const filtered = useMemo(() => {
     return deals.filter((d) => {
@@ -102,6 +107,23 @@ export default function DealsListPage() {
       render: (d) => <Tooltip title={dayjs(d).format('D MMMM YYYY, HH:mm')}><Text type="secondary" style={{ fontSize: 12 }}>{dayjs(d).fromNow()}</Text></Tooltip>,
       sorter: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
     },
+    ...(canDelete ? [{
+      title: '',
+      key: 'actions',
+      width: 48,
+      render: (_: unknown, d: Deal) => (
+        <Popconfirm
+          title="Удалить сделку?"
+          description="Сделка и история статусов будут удалены."
+          onConfirm={(e) => { e?.stopPropagation(); handleDelete(d.id) }}
+          okText="Удалить"
+          cancelText="Отмена"
+          okButtonProps={{ danger: true }}
+        >
+          <Button type="text" size="small" danger icon={<DeleteOutlined />} onClick={(e) => e.stopPropagation()} />
+        </Popconfirm>
+      ),
+    }] : []),
   ]
 
   return (

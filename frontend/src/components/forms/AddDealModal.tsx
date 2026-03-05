@@ -1,6 +1,6 @@
 import { Modal, Form, Input, Select, InputNumber, DatePicker, Row, Col } from 'antd'
-import { MOCK_USERS, MOCK_CLIENTS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
+import { useDataStore } from '@/store/dataStore'
 import type { Deal, DealStatus } from '@/types'
 import dayjs from 'dayjs'
 
@@ -27,8 +27,9 @@ export function AddDealModal({ open, onClose, onSubmit, initialClientId }: Props
   const [form] = Form.useForm()
   const { currentUser, hasRole, canViewManager } = useAuthStore()
 
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
-  const clients = MOCK_CLIENTS.filter((c) => canViewManager(c.managerId))
+  const { users, clients: allClients } = useDataStore()
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
+  const clients = allClients.filter((c) => canViewManager(c.managerId))
 
   const handleOk = () => {
     form.validateFields().then((values) => {

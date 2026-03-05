@@ -1,6 +1,6 @@
 import { Modal, Form, Input, Select, DatePicker, Row, Col } from 'antd'
-import { MOCK_CLIENTS, MOCK_DEALS, MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
+import { useDataStore } from '@/store/dataStore'
 import type { Task, TaskPriority } from '@/types'
 import dayjs from 'dayjs'
 
@@ -25,9 +25,10 @@ export function AddTaskModal({ open, onClose, onSubmit, initialClientId, initial
   const [form] = Form.useForm()
   const { currentUser, hasRole, canViewManager } = useAuthStore()
 
-  const clients = MOCK_CLIENTS.filter((c) => canViewManager(c.managerId))
-  const deals = MOCK_DEALS.filter((d) => canViewManager(d.managerId))
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const { users, clients: allClients, deals: allDeals } = useDataStore()
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
+  const clients = allClients.filter((c) => canViewManager(c.managerId))
+  const deals = allDeals.filter((d) => canViewManager(d.managerId))
 
   const handleOk = () => {
     form.validateFields().then((values) => {

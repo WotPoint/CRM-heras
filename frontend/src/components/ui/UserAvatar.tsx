@@ -1,5 +1,5 @@
 import { Avatar, Tooltip } from 'antd'
-import { MOCK_USERS } from '@/mocks'
+import { useDataStore } from '@/store/dataStore'
 import { getAvatarColor, getInitials } from '@/utils/avatar'
 
 interface UserAvatarProps {
@@ -10,7 +10,7 @@ interface UserAvatarProps {
 }
 
 export function UserAvatar({ userId, size = 28, showName = false, showTooltip = true }: UserAvatarProps) {
-  const user = MOCK_USERS.find((u) => u.id === userId)
+  const user = useDataStore((s) => s.users.find((u) => u.id === userId))
   if (!user) return null
 
   const avatar = (
@@ -35,7 +35,7 @@ export function UserAvatar({ userId, size = 28, showName = false, showTooltip = 
   )
 }
 
-/** Короткое имя пользователя по id */
+/** Короткое имя пользователя по id (вне React-компонентов) */
 export function getUserName(userId: string): string {
-  return MOCK_USERS.find((u) => u.id === userId)?.name ?? '—'
+  return useDataStore.getState().users.find((u) => u.id === userId)?.name ?? '—'
 }

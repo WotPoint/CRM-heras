@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Card, Typography, Button, Select, Space, Tooltip, Checkbox, message, Badge, Segmented } from 'antd'
-import { PlusOutlined, FilterOutlined, CheckCircleFilled, ExclamationCircleOutlined, ClockCircleOutlined, CalendarOutlined } from '@ant-design/icons'
+import { Card, Typography, Button, Select, Space, Tooltip, Checkbox, message, Badge, Segmented, Popconfirm } from 'antd'
+import { PlusOutlined, FilterOutlined, CheckCircleFilled, ExclamationCircleOutlined, ClockCircleOutlined, CalendarOutlined, DeleteOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 
-import { MOCK_USERS } from '@/mocks'
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
@@ -43,14 +42,15 @@ export default function TasksPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { canViewManager, hasRole } = useAuthStore()
-  const { tasks, clients, deals, addTask, updateTask } = useDataStore()
+  const { tasks, clients, deals, addTask, updateTask, deleteTask, users } = useDataStore()
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('')
   const [assigneeFilter, setAssigneeFilter] = useState('')
   const [showDone, setShowDone] = useState(false)
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === '1')
-  const managers = MOCK_USERS.filter((u) => u.role === 'manager')
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive)
+  const canDelete = hasRole('supervisor', 'admin')
 
   const filtered = useMemo(() => {
     return tasks
@@ -86,6 +86,11 @@ export default function TasksPage() {
         completedAt: isDone ? undefined : new Date().toISOString(),
       })
     } catch (e) { message.error((e as Error).message) }
+  }
+
+  const handleDelete = async (taskId: string) => {
+    try { await deleteTask(taskId); message.success('Задача удалена') }
+    catch (e) { message.error((e as Error).message) }
   }
 
   const totalOpen = tasks.filter((t) => canViewManager(t.assigneeId) && t.status !== 'done').length
@@ -148,7 +153,22 @@ export default function TasksPage() {
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
                             <Text delete={isDone} strong={!isDone} style={{ fontSize: 13 }}>{task.title}</Text>
-                            <Space size={6} style={{ flexShrink: 0 }}><PriorityBadge priority={task.priority} /><TaskStatusBadge status={task.status} /></Space>
+                            <Space size={6} style={{ flexShrink: 0 }}>
+                              <PriorityBadge priority={task.priority} />
+                              <TaskStatusBadge status={task.status} />
+                              {canDelete && (
+                                <Popconfirm
+                                  title="Удалить задачу?"
+                                  description="Это действие необратимо."
+                                  onConfirm={() => handleDelete(task.id)}
+                                  okText="Удалить"
+                                  cancelText="Отмена"
+                                  okButtonProps={{ danger: true }}
+                                >
+                                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                                </Popconfirm>
+                              )}
+                            </Space>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
                             <UserAvatar userId={task.assigneeId} size={18} showName />

@@ -26,16 +26,32 @@ model User {
   activities    Activity[]         @relation("ActivityManager")
   assignedTasks Task[]             @relation("TaskAssignee")
   statusChanges DealStatusChange[] @relation("StatusChanger")
+  assignedRequests Request[]       @relation("RequestAssignee")
+}
+
+model Company {
+  id        String  @id
+  name      String
+  inn       String?
+  address   String?
+  phone     String?
+  createdAt String
+
+  clients Client[] @relation("ClientCompany")
+  deals   Deal[]   @relation("DealCompany")
 }
 
 model Client {
   id            String  @id
   firstName     String
   lastName      String
-  company       String?
+  middleName    String?
+  company       String? // legacy plain text, kept for backwards compat
+  companyId     String? // FK → Company
   email         String?
   phone         String?
   address       String?
+  position      String? // должность контакта
   status        String  // lead | active | regular | archived
   managerId     String
   tags          String  @default("[]") // JSON array stored as string
@@ -45,15 +61,18 @@ model Client {
   lastContactAt String?
 
   manager    User       @relation("ClientManager", fields: [managerId], references: [id])
+  companyRef Company?   @relation("ClientCompany", fields: [companyId], references: [id])
   deals      Deal[]     @relation("DealClient")
   activities Activity[] @relation("ActivityClient")
   tasks      Task[]     @relation("TaskClient")
+  requests   Request[]  @relation("RequestContact")
 }
 
 model Deal {
   id          String  @id
   title       String
   clientId    String
+  companyId   String? // FK → Company (опционально)
   managerId   String
   status      String  // new | negotiation | proposal_sent | awaiting_payment | won | lost
   amount      Float
@@ -63,10 +82,28 @@ model Deal {
   updatedAt   String
 
   client        Client             @relation("DealClient", fields: [clientId], references: [id])
+  companyRef    Company?           @relation("DealCompany", fields: [companyId], references: [id])
   manager       User               @relation("DealManager", fields: [managerId], references: [id])
   statusChanges DealStatusChange[] @relation("StatusChangeDeal")
   activities    Activity[]         @relation("ActivityDeal")
   tasks         Task[]             @relation("TaskDeal")
+  requests      Request[]          @relation("RequestDeal")
+}
+
+model Request {
+  id          String  @id
+  title       String
+  description String?
+  status      String  @default("new") // new | in_progress | resolved | closed
+  contactId   String?
+  dealId      String?
+  assigneeId  String?
+  createdAt   String
+  closedAt    String?
+
+  contact  Client? @relation("RequestContact", fields: [contactId], references: [id])
+  deal     Deal?   @relation("RequestDeal", fields: [dealId], references: [id])
+  assignee User?   @relation("RequestAssignee", fields: [assigneeId], references: [id])
 }
 
 model DealStatusChange {

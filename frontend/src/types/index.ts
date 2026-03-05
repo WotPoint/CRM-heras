@@ -18,7 +18,19 @@ export interface User {
 }
 
 // ============================================================
-// CLIENTS
+// COMPANIES
+// ============================================================
+export interface Company {
+  id: string
+  name: string
+  inn?: string
+  address?: string
+  phone?: string
+  createdAt: string
+}
+
+// ============================================================
+// CLIENTS (Contact + Lead unified by status)
 // ============================================================
 export type ClientStatus = 'lead' | 'active' | 'regular' | 'archived'
 
@@ -26,7 +38,12 @@ export interface Client {
   id: string
   firstName: string
   lastName: string
+  middleName?: string
+  position?: string
+  /** Plain text company name (legacy) */
   company?: string
+  /** FK → Company */
+  companyId?: string
   email?: string
   phone?: string
   address?: string
@@ -54,6 +71,8 @@ export interface Deal {
   id: string
   title: string
   clientId: string
+  /** FK → Company (опционально) */
+  companyId?: string
   managerId: string
   status: DealStatus
   amount: number
@@ -87,6 +106,23 @@ export interface Activity {
   description: string
   result?: string
   createdAt: string
+}
+
+// ============================================================
+// REQUESTS (входящие запросы от клиентов)
+// ============================================================
+export type RequestStatus = 'new' | 'in_progress' | 'resolved' | 'closed'
+
+export interface Request {
+  id: string
+  title: string
+  description?: string
+  status: RequestStatus
+  contactId?: string
+  dealId?: string
+  assigneeId?: string
+  createdAt: string
+  closedAt?: string
 }
 
 // ============================================================

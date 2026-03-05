@@ -6,11 +6,13 @@ async function main() {
   console.log('🌱 Seeding database...')
 
   // Clear in reverse FK order
+  await prisma.request.deleteMany()
   await prisma.task.deleteMany()
   await prisma.activity.deleteMany()
   await prisma.dealStatusChange.deleteMany()
   await prisma.deal.deleteMany()
   await prisma.client.deleteMany()
+  await prisma.company.deleteMany()
   await prisma.user.deleteMany()
 
   // ─── Users ─────────────────────────────────────────────────────────────────
@@ -68,6 +70,36 @@ async function main() {
     ],
   })
 
+  // ─── Companies ──────────────────────────────────────────────────────────────
+  await prisma.company.createMany({
+    data: [
+      {
+        id: 'co1',
+        name: 'ООО "Стройком"',
+        inn: '7701234567',
+        address: 'г. Москва, ул. Строителей, 12',
+        phone: '+7 495 111-22-33',
+        createdAt: '2025-11-15T10:00:00',
+      },
+      {
+        id: 'co2',
+        name: 'АО "ТехноТрейд"',
+        inn: '7709876543',
+        address: 'г. Москва, Ленинградский пр-т, 55',
+        phone: '+7 495 444-55-66',
+        createdAt: '2024-08-05T10:00:00',
+      },
+      {
+        id: 'co3',
+        name: 'ООО "Гермес"',
+        inn: '7712345678',
+        address: 'г. Санкт-Петербург, ул. Торговая, 8',
+        phone: '+7 812 777-88-99',
+        createdAt: '2026-02-01T09:00:00',
+      },
+    ],
+  })
+
   // ─── Clients ────────────────────────────────────────────────────────────────
   await prisma.client.createMany({
     data: [
@@ -75,7 +107,10 @@ async function main() {
         id: 'c1',
         firstName: 'Иван',
         lastName: 'Петров',
+        middleName: 'Сергеевич',
+        position: 'Директор по закупкам',
         company: 'ООО "Стройком"',
+        companyId: 'co1',
         email: 'petrov@stroykom.ru',
         phone: '+7 916 123-45-67',
         status: 'active',
@@ -103,7 +138,10 @@ async function main() {
         id: 'c3',
         firstName: 'Алексей',
         lastName: 'Козлов',
+        middleName: 'Владимирович',
+        position: 'Генеральный директор',
         company: 'АО "ТехноТрейд"',
+        companyId: 'co2',
         email: 'kozlov@technotrade.ru',
         phone: '+7 903 555-44-33',
         status: 'regular',
@@ -130,7 +168,9 @@ async function main() {
         id: 'c5',
         firstName: 'Владимир',
         lastName: 'Смирнов',
+        position: 'Менеджер по снабжению',
         company: 'ООО "Гермес"',
+        companyId: 'co3',
         email: 'smirnov@germes.ru',
         phone: '+7 926 333-22-11',
         status: 'lead',
@@ -163,6 +203,7 @@ async function main() {
         id: 'd1',
         title: 'Поставка стройматериалов Q1',
         clientId: 'c1',
+        companyId: 'co1',
         managerId: 'u1',
         status: 'negotiation',
         amount: 450000,
@@ -187,6 +228,7 @@ async function main() {
         id: 'd3',
         title: 'Годовой контракт ТехноТрейд',
         clientId: 'c3',
+        companyId: 'co2',
         managerId: 'u1',
         status: 'won',
         amount: 1200000,
@@ -373,8 +415,44 @@ async function main() {
     ],
   })
 
+  // ─── Requests ────────────────────────────────────────────────────────────────
+  await prisma.request.createMany({
+    data: [
+      {
+        id: 'r1',
+        title: 'Запрос на расчёт стоимости доставки',
+        description: 'Клиент просит рассчитать стоимость доставки 5 тонн кирпича в Подмосковье',
+        status: 'new',
+        contactId: 'c1',
+        dealId: 'd1',
+        assigneeId: 'u1',
+        createdAt: '2026-03-01T09:00:00',
+      },
+      {
+        id: 'r2',
+        title: 'Вопрос по счёту на оплату',
+        description: 'Клиент запрашивает исправленный счёт с новыми реквизитами',
+        status: 'in_progress',
+        contactId: 'c4',
+        dealId: 'd4',
+        assigneeId: 'u2',
+        createdAt: '2026-02-28T15:00:00',
+      },
+      {
+        id: 'r3',
+        title: 'Рекламация по качеству товара',
+        description: 'Часть партии пришла с дефектами, клиент требует замену',
+        status: 'resolved',
+        contactId: 'c3',
+        assigneeId: 'u1',
+        createdAt: '2026-02-10T10:00:00',
+        closedAt: '2026-02-20T16:00:00',
+      },
+    ],
+  })
+
   console.log('✅ Seed complete!')
-  console.log('   Users: 4 | Clients: 6 | Deals: 6 | Activities: 6 | Tasks: 5')
+  console.log('   Users: 4 | Companies: 3 | Clients: 6 | Deals: 6 | Activities: 6 | Tasks: 5 | Requests: 3')
 }
 
 main()
