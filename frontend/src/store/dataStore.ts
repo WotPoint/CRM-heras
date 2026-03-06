@@ -27,6 +27,7 @@ interface DataState {
 
   addTask: (data: Partial<Task>) => Promise<Task>
   updateTask: (id: string, data: Partial<Task>) => Promise<Task>
+  archiveTask: (id: string) => Promise<void>
   deleteTask: (id: string) => Promise<void>
 }
 
@@ -114,6 +115,11 @@ export const useDataStore = create<DataState>()((set, get) => ({
     const task = await tasksApi.update(id, data)
     set((s) => ({ tasks: s.tasks.map((t) => (t.id === id ? task : t)) }))
     return task
+  },
+
+  archiveTask: async (id) => {
+    await tasksApi.archive(id)
+    set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) }))
   },
 
   deleteTask: async (id) => {

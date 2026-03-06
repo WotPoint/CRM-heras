@@ -3,9 +3,14 @@ import type { User, Client, Deal, Activity, Task, DealStatusChange } from '@/typ
 
 export const authApi = {
   login: (email: string, password: string) =>
-    apiFetch<{ token: string; user: User }>('/api/auth/login', {
+    apiFetch<{ token: string; user: User & { mustChangePassword: boolean } }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
+    }),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    apiFetch<{ ok: boolean }>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
     }),
 }
 
@@ -44,9 +49,11 @@ export const activitiesApi = {
 
 export const tasksApi = {
   list: () => apiFetch<Task[]>('/api/tasks'),
+  archived: () => apiFetch<Task[]>('/api/tasks/archived'),
   create: (data: Partial<Task>) =>
     apiFetch<Task>('/api/tasks', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Task>) =>
     apiFetch<Task>(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  archive: (id: string) => apiFetch<Task>(`/api/tasks/${id}/archive`, { method: 'PATCH' }),
   delete: (id: string) => apiFetch<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
 }

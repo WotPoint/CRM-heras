@@ -1,9 +1,11 @@
 import { PrismaClient } from '@prisma/client'
+import bcrypt from 'bcrypt'
 
 const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Seeding database...')
+  const passwordHash = await bcrypt.hash('123456', 10)
 
   // Clear in reverse FK order
   await prisma.request.deleteMany()
@@ -26,6 +28,8 @@ async function main() {
         phone: '+7 900 777-88-99',
         role: 'supervisor',
         isActive: true,
+        passwordHash,
+        mustChangePassword: false,
         createdAt: '2023-11-01T09:00:00',
         lastLoginAt: '2026-03-02T09:00:00',
       },
@@ -36,6 +40,8 @@ async function main() {
         phone: '+7 900 000-11-22',
         role: 'admin',
         isActive: true,
+        passwordHash,
+        mustChangePassword: false,
         createdAt: '2023-10-01T09:00:00',
         lastLoginAt: '2026-03-02T08:00:00',
       },
@@ -52,6 +58,8 @@ async function main() {
         phone: '+7 900 111-22-33',
         role: 'manager',
         isActive: true,
+        passwordHash,
+        mustChangePassword: false,
         createdAt: '2024-01-10T09:00:00',
         lastLoginAt: '2026-03-02T08:30:00',
         supervisorId: 'u3',
@@ -63,6 +71,8 @@ async function main() {
         phone: '+7 900 444-55-66',
         role: 'manager',
         isActive: true,
+        passwordHash,
+        mustChangePassword: false,
         createdAt: '2024-02-15T09:00:00',
         lastLoginAt: '2026-03-01T17:45:00',
         supervisorId: 'u3',

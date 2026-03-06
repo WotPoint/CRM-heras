@@ -3,6 +3,9 @@ import { v4 as uuidv4 } from 'uuid'
 import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
+import { validate } from '../middleware/validate.js'
+
+const ACTIVITY_TYPES = ['call', 'email', 'meeting', 'note', 'status_change']
 
 const router = Router()
 
@@ -46,27 +49,35 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /api/activities
  */
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { type, managerId, clientId, dealId, date, description, result } = req.body
-    if (!type || !description || !date) { res.status(400).json({ error: 'type, description, date — обязательные поля' }); return }
+router.post(
+  '/',
+  validate({
+    type:        { required: true, enum: ACTIVITY_TYPES },
+    description: { required: true, type: 'string', maxLength: 1000, trim: true },
+    date:        { required: true, isIso: true },
+    result:      { type: 'string', maxLength: 500, trim: true },
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const { type, managerId, clientId, dealId, date, description, result } = req.body
 
-    const activity = await prisma.activity.create({
-      data: {
-        id: uuidv4(),
-        type,
-        managerId: managerId ?? req.user!.userId,
-        clientId,
-        dealId,
-        date,
-        description,
-        result,
-        createdAt: new Date().toISOString(),
-      },
-    })
-    res.status(201).json(activity)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
-})
+      const activity = await prisma.activity.create({
+        data: {
+          id: uuidv4(),
+          type,
+          managerId: managerId ?? req.user!.userId,
+          clientId,
+          dealId,
+          date,
+          description,
+          result,
+          createdAt: new Date().toISOString(),
+        },
+      })
+      res.status(201).json(activity)
+    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  }
+)
 
 /**
  * PATCH /api/activities/:id

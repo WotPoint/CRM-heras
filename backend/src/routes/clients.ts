@@ -4,6 +4,9 @@ import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter, fmtClient, serializeTags } from '../lib/helpers.js'
+import { validate } from '../middleware/validate.js'
+
+const CLIENT_STATUSES = ['lead', 'active', 'regular', 'archived']
 
 const router = Router()
 
@@ -60,36 +63,56 @@ router.get('/:id', async (req: Request, res: Response) => {
 /**
  * POST /api/clients
  */
-router.post('/', async (req: Request, res: Response) => {
-  try {
-    const { firstName, lastName, company, email, phone, address, status, managerId, tags, source, comment } = req.body
-    if (!firstName || !lastName) { res.status(400).json({ error: 'firstName и lastName — обязательные поля' }); return }
+router.post(
+  '/',
+  validate({
+    firstName: { required: true, type: 'string', maxLength: 100, trim: true },
+    lastName:  { required: true, type: 'string', maxLength: 100, trim: true },
+    email:     { isEmail: true, trim: true },
+    status:    { enum: CLIENT_STATUSES },
+    company:   { type: 'string', maxLength: 200, trim: true },
+    phone:     { type: 'string', maxLength: 30, trim: true },
+  }),
+  async (req: Request, res: Response) => {
+    try {
+      const { firstName, lastName, company, email, phone, address, status, managerId, tags, source, comment } = req.body
 
-    const row = await prisma.client.create({
-      data: {
-        id: uuidv4(),
-        firstName,
-        lastName,
-        company,
-        email,
-        phone,
-        address,
-        status: status ?? 'lead',
-        managerId: managerId ?? req.user!.userId,
-        tags: serializeTags(tags),
-        source,
-        comment,
-        createdAt: new Date().toISOString(),
-      },
-    })
-    res.status(201).json(fmtClient(row as Record<string, unknown>))
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
-})
+      const row = await prisma.client.create({
+        data: {
+          id: uuidv4(),
+          firstName,
+          lastName,
+          company,
+          email,
+          phone,
+          address,
+          status: status ?? 'lead',
+          managerId: managerId ?? req.user!.userId,
+          tags: serializeTags(tags),
+          source,
+          comment,
+          createdAt: new Date().toISOString(),
+        },
+      })
+      res.status(201).json(fmtClient(row as Record<string, unknown>))
+    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  }
+)
 
 /**
  * PATCH /api/clients/:id
  */
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch(
+  '/:id',
+  validate({
+    firstName: { type: 'string', maxLength: 100, trim: true },
+    lastName:  { type: 'string', maxLength: 100, trim: true },
+    email:     { isEmail: true, trim: true },
+    status:    { enum: CLIENT_STATUSES },
+    company:   { type: 'string', maxLength: 200, trim: true },
+    phone:     { type: 'string', maxLength: 30, trim: true },
+  }),
+  async (req: Request, res: Response) => {
   try {
     const row = await prisma.client.findUnique({ where: { id: req.params.id } })
     if (!row) { res.status(404).json({ error: 'Клиент не найден' }); return }
@@ -102,7 +125,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
     })
     res.json(fmtClient(updated as Record<string, unknown>))
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
-})
+  }
+)
 
 /**
  * DELETE /api/clients/:id  (supervisor + admin only)

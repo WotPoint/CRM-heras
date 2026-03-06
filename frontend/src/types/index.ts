@@ -11,6 +11,7 @@ export interface User {
   role: UserRole
   avatarUrl?: string
   isActive: boolean
+  mustChangePassword?: boolean
   createdAt: string
   lastLoginAt?: string
   /** Для менеджера — id руководителя */

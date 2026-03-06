@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react'
-import { Card, Typography, Button, Select, Space, Tooltip, Checkbox, message, Badge, Segmented, Popconfirm } from 'antd'
-import { PlusOutlined, FilterOutlined, CheckCircleFilled, ExclamationCircleOutlined, ClockCircleOutlined, CalendarOutlined, DeleteOutlined } from '@ant-design/icons'
+import { useEffect, useMemo, useState } from 'react'
+import { Card, Typography, Button, Select, Space, Tooltip, Checkbox, message, Badge, Segmented, Popconfirm, Tabs } from 'antd'
+import { PlusOutlined, FilterOutlined, CheckCircleFilled, ExclamationCircleOutlined, ClockCircleOutlined, CalendarOutlined, DeleteOutlined, InboxOutlined } from '@ant-design/icons'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 
 import { useAuthStore } from '@/store/authStore'
 import { useDataStore } from '@/store/dataStore'
+import { tasksApi } from '@/api'
 import type { Task, TaskStatus, TaskPriority } from '@/types'
 import { PriorityBadge, TaskStatusBadge } from '@/components/ui/StatusBadge'
 import { UserAvatar } from '@/components/ui/UserAvatar'
@@ -42,15 +43,28 @@ export default function TasksPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { canViewManager, hasRole } = useAuthStore()
-  const { tasks, clients, deals, addTask, updateTask, deleteTask, users } = useDataStore()
+  const { tasks, clients, deals, addTask, updateTask, archiveTask, deleteTask, users } = useDataStore()
 
   const [statusFilter, setStatusFilter] = useState<TaskStatus | ''>('')
   const [priorityFilter, setPriorityFilter] = useState<TaskPriority | ''>('')
   const [assigneeFilter, setAssigneeFilter] = useState('')
   const [showDone, setShowDone] = useState(false)
   const [addOpen, setAddOpen] = useState(searchParams.get('add') === '1')
+  const [activeTab, setActiveTab] = useState('active')
+  const [archivedTasks, setArchivedTasks] = useState<Task[]>([])
+  const [archivedLoading, setArchivedLoading] = useState(false)
   const managers = users.filter((u) => u.role === 'manager' && u.isActive)
-  const canDelete = hasRole('supervisor', 'admin')
+  const canArchiveDelete = hasRole('supervisor', 'admin')
+
+  useEffect(() => {
+    if (activeTab === 'archived' && canArchiveDelete) {
+      setArchivedLoading(true)
+      tasksApi.archived()
+        .then(setArchivedTasks)
+        .catch((e) => message.error((e as Error).message))
+        .finally(() => setArchivedLoading(false))
+    }
+  }, [activeTab, canArchiveDelete])
 
   const filtered = useMemo(() => {
     return tasks
@@ -88,6 +102,13 @@ export default function TasksPage() {
     } catch (e) { message.error((e as Error).message) }
   }
 
+  const handleArchive = async (taskId: string) => {
+    try {
+      await archiveTask(taskId)
+      message.success('Задача перемещена в архив')
+    } catch (e) { message.error((e as Error).message) }
+  }
+
   const handleDelete = async (taskId: string) => {
     try { await deleteTask(taskId); message.success('Задача удалена') }
     catch (e) { message.error((e as Error).message) }
@@ -95,6 +116,11 @@ export default function TasksPage() {
 
   const totalOpen = tasks.filter((t) => canViewManager(t.assigneeId) && t.status !== 'done').length
   const totalOverdue = tasks.filter((t) => canViewManager(t.assigneeId) && getGroup(t) === 'overdue').length
+
+  const tabItems = [
+    { key: 'active', label: 'Задачи' },
+    ...(canArchiveDelete ? [{ key: 'archived', label: <span><InboxOutlined /> Архив</span> }] : []),
+  ]
 
   return (
     <div>
@@ -106,8 +132,52 @@ export default function TasksPage() {
           </Space>
           <Text type="secondary">{totalOpen} активных задач</Text>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Добавить задачу</Button>
+        {activeTab === 'active' && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>Добавить задачу</Button>
+        )}
       </div>
+
+      {canArchiveDelete && (
+        <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} style={{ marginBottom: 8 }} />
+      )}
+
+      {activeTab === 'archived' ? (
+        <div>
+          {archivedLoading ? null : archivedTasks.length === 0 ? (
+            <EmptyState description="Архив пуст" />
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }} size={6}>
+              {archivedTasks.map((task) => {
+                const client = task.clientId ? clients.find((c) => c.id === task.clientId) : null
+                const deal = task.dealId ? deals.find((d) => d.id === task.dealId) : null
+                return (
+                  <Card key={task.id} size="small" style={{ borderRadius: 10, opacity: 0.7 }} styles={{ body: { padding: '10px 14px' } }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                      <InboxOutlined style={{ color: '#999', marginTop: 2, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                          <Text style={{ fontSize: 13 }}>{task.title}</Text>
+                          <Space size={6} style={{ flexShrink: 0 }}>
+                            <PriorityBadge priority={task.priority} />
+                            <TaskStatusBadge status={task.status} />
+                          </Space>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                          <UserAvatar userId={task.assigneeId} size={18} showName />
+                          {client && <Text style={{ fontSize: 12, color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(`/clients/${client.id}`)}>{client.firstName} {client.lastName}</Text>}
+                          {deal && <Text style={{ fontSize: 12, color: '#1677ff', cursor: 'pointer' }} onClick={() => navigate(`/deals/${deal.id}`)}>{deal.title}</Text>}
+                        </div>
+                        {task.description && <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>{task.description}</Text>}
+                      </div>
+                    </div>
+                  </Card>
+                )
+              })}
+            </Space>
+          )}
+        </div>
+      ) : (
+        <>
       <Card style={{ marginBottom: 16, borderRadius: 12 }} styles={{ body: { padding: '12px 16px' } }}>
         <Space wrap size={12} align="center">
           <FilterOutlined style={{ color: '#999' }} />
@@ -156,7 +226,18 @@ export default function TasksPage() {
                             <Space size={6} style={{ flexShrink: 0 }}>
                               <PriorityBadge priority={task.priority} />
                               <TaskStatusBadge status={task.status} />
-                              {canDelete && (
+                              {canArchiveDelete && (
+                                <Popconfirm
+                                  title="Архивировать задачу?"
+                                  description="Задача будет скрыта из основного списка."
+                                  onConfirm={() => handleArchive(task.id)}
+                                  okText="Архивировать"
+                                  cancelText="Отмена"
+                                >
+                                  <Button type="text" size="small" icon={<InboxOutlined />} />
+                                </Popconfirm>
+                              )}
+                              {canArchiveDelete && (
                                 <Popconfirm
                                   title="Удалить задачу?"
                                   description="Это действие необратимо."
@@ -194,6 +275,8 @@ export default function TasksPage() {
         })
       )}
       <AddTaskModal open={addOpen} onClose={() => setAddOpen(false)} onSubmit={handleAdd} />
+        </>
+      )}
     </div>
   )
 }

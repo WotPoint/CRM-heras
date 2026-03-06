@@ -2,7 +2,11 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import type { JwtPayload } from '../types/index.js'
 
-export const JWT_SECRET = process.env.JWT_SECRET ?? 'crm-heras-secret-key-2024'
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET не задан в .env')
+  process.exit(1)
+}
+export const JWT_SECRET = process.env.JWT_SECRET
 
 export function authenticate(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization

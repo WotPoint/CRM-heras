@@ -8,16 +8,18 @@ datasource db {
 }
 
 model User {
-  id           String  @id
-  name         String
-  email        String  @unique
-  phone        String?
-  role         String  // manager | supervisor | admin
-  avatarUrl    String?
-  isActive     Boolean @default(true)
-  createdAt    String
-  lastLoginAt  String?
-  supervisorId String?
+  id                 String  @id
+  name               String
+  email              String  @unique
+  phone              String?
+  role               String  // manager | supervisor | admin
+  avatarUrl          String?
+  isActive           Boolean @default(true)
+  passwordHash       String  @default("")
+  mustChangePassword Boolean @default(false)
+  createdAt          String
+  lastLoginAt        String?
+  supervisorId       String?
 
   supervisor    User?              @relation("UserSupervisor", fields: [supervisorId], references: [id])
   reports       User[]             @relation("UserSupervisor")
@@ -135,17 +137,19 @@ model Activity {
 }
 
 model Task {
-  id          String  @id
+  id          String   @id
   title       String
   description String?
-  status      String  // new | in_progress | done
-  priority    String  // low | medium | high
+  status      String   // new | in_progress | done
+  priority    String   // low | medium | high
   assigneeId  String
   clientId    String?
   dealId      String?
   deadline    String?
   createdAt   String
   completedAt String?
+  isArchived  Boolean  @default(false)
+  archivedAt  String?
 
   assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id])
   client   Client? @relation("TaskClient", fields: [clientId], references: [id])

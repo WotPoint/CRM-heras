@@ -4,6 +4,9 @@ import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
+import { validate } from '../middleware/validate.js'
+
+const DEAL_STATUSES = ['new', 'negotiation', 'proposal_sent', 'awaiting_payment', 'won', 'lost']
 
 const router = Router()
 
@@ -63,10 +66,18 @@ router.get('/:id/history', async (req: Request, res: Response) => {
 /**
  * POST /api/deals
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post(
+  '/',
+  validate({
+    title:    { required: true, type: 'string', maxLength: 200, trim: true },
+    clientId: { required: true, type: 'string' },
+    amount:   { type: 'number', min: 0 },
+    deadline: { isIso: true },
+    status:   { enum: DEAL_STATUSES },
+  }),
+  async (req: Request, res: Response) => {
   try {
     const { title, clientId, managerId, status, amount, deadline, description } = req.body
-    if (!title || !clientId) { res.status(400).json({ error: 'title и clientId — обязательные поля' }); return }
 
     const now = new Date().toISOString()
     const dealStatus = status ?? 'new'
@@ -83,13 +94,22 @@ router.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json(deal)
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
-})
+  }
+)
 
 /**
  * PATCH /api/deals/:id
  * Tracks status changes automatically
  */
-router.patch('/:id', async (req: Request, res: Response) => {
+router.patch(
+  '/:id',
+  validate({
+    title:    { type: 'string', maxLength: 200, trim: true },
+    amount:   { type: 'number', min: 0 },
+    deadline: { isIso: true },
+    status:   { enum: DEAL_STATUSES },
+  }),
+  async (req: Request, res: Response) => {
   try {
     const existing = await prisma.deal.findUnique({ where: { id: req.params.id } })
     if (!existing) { res.status(404).json({ error: 'Сделка не найдена' }); return }
@@ -107,7 +127,8 @@ router.patch('/:id', async (req: Request, res: Response) => {
     }
     res.json(deal)
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
-})
+  }
+)
 
 /**
  * DELETE /api/deals/:id  (supervisor + admin only)

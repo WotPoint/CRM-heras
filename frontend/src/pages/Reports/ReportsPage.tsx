@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Card, Typography, Row, Col, Table, Select, Space, Progress, Tabs, Tag, Divider } from 'antd'
-import { BarChartOutlined, TeamOutlined, UserOutlined, CalendarOutlined, TrophyOutlined, RiseOutlined } from '@ant-design/icons'
+import { Card, Typography, Row, Col, Table, Select, Space, Progress, Tabs, Tag, Divider, Button, Dropdown } from 'antd'
+import { BarChartOutlined, TeamOutlined, UserOutlined, CalendarOutlined, TrophyOutlined, RiseOutlined, DownloadOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import type { ColumnsType } from 'antd/es/table'
 
@@ -87,6 +87,33 @@ export default function ReportsPage() {
   const totalWon = managerRows.reduce((s, r) => s + r.wonAmount, 0)
   const totalWonDeals = managerRows.reduce((s, r) => s + r.wonDeals, 0)
 
+  const BASE_URL = 'http://localhost:3001'
+  const token = localStorage.getItem('crm-auth')
+    ? (JSON.parse(localStorage.getItem('crm-auth')!)?.state?.token ?? '')
+    : ''
+
+  const downloadCsv = (path: string, filename: string) => {
+    const a = document.createElement('a')
+    a.href = `${BASE_URL}${path}?token=${encodeURIComponent(token)}`
+    // Use fetch to include Authorization header
+    fetch(`${BASE_URL}${path}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.blob())
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        a.href = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      })
+  }
+
+  const exportItems = [
+    { key: 'managers', label: 'Менеджеры', onClick: () => downloadCsv('/api/reports/managers/export', 'managers.csv') },
+    { key: 'funnel', label: 'Воронка', onClick: () => downloadCsv('/api/reports/funnel/export', 'funnel.csv') },
+    { key: 'clients', label: 'Клиенты', onClick: () => downloadCsv('/api/reports/clients/export', 'clients.csv') },
+    { key: 'activities', label: 'Активности', onClick: () => downloadCsv('/api/reports/activities/export', 'activities.csv') },
+  ]
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -98,6 +125,9 @@ export default function ReportsPage() {
           <Select value={managerFilter || undefined} onChange={(v) => setManagerFilter(v ?? '')} style={{ width: 180 }} placeholder="Все менеджеры" allowClear>
             {managers.map((m) => <Option key={m.id} value={m.id}>{m.name}</Option>)}
           </Select>
+          <Dropdown menu={{ items: exportItems }} placement="bottomRight">
+            <Button icon={<DownloadOutlined />}>Скачать CSV</Button>
+          </Dropdown>
         </Space>
       </div>
       <Row gutter={[16, 16]} style={{ marginBottom: 20 }}>

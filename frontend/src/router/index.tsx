@@ -7,6 +7,7 @@ import { lazy, Suspense } from 'react'
 import { Spin } from 'antd'
 
 const LoginPage = lazy(() => import('@/pages/Login/LoginPage'))
+const ChangePasswordPage = lazy(() => import('@/pages/ChangePassword/ChangePasswordPage'))
 const DashboardPage = lazy(() => import('@/pages/Dashboard/DashboardPage'))
 const ClientsListPage = lazy(() => import('@/pages/Clients/ClientsList/ClientsListPage'))
 const ClientDetailPage = lazy(() => import('@/pages/Clients/ClientDetail/ClientDetailPage'))
@@ -32,6 +33,13 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: withSuspense(<LoginPage />),
+  },
+  {
+    // Change password — requires auth but bypasses mustChangePassword guard
+    element: <PrivateRoute />,
+    children: [
+      { path: '/change-password', element: withSuspense(<ChangePasswordPage />) },
+    ],
   },
   {
     element: <PrivateRoute />,
