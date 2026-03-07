@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
+import { sendNotification } from '../lib/notifications.js'
 
 const TASK_STATUSES = ['new', 'in_progress', 'done']
 const TASK_PRIORITIES = ['low', 'medium', 'high']
@@ -95,6 +96,15 @@ router.post(
           createdAt: new Date().toISOString(),
         },
       })
+
+      sendNotification('task_assigned', {
+        taskId: task.id,
+        assigneeId: task.assigneeId,
+        title: task.title,
+        deadline: task.deadline,
+        clientId: task.clientId,
+      }).catch(err => console.error('[notification] task_assigned failed:', err))
+
       res.status(201).json(task)
     } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }

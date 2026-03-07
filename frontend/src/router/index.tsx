@@ -18,6 +18,7 @@ const TasksPage = lazy(() => import('@/pages/Tasks/TasksPage'))
 const ReportsPage = lazy(() => import('@/pages/Reports/ReportsPage'))
 const AdminUsersPage = lazy(() => import('@/pages/Admin/Users/AdminUsersPage'))
 const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage'))
+const EmailPage = lazy(() => import('@/pages/Email/EmailPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -65,6 +66,7 @@ export const router = createBrowserRouter([
             element: <PrivateRoute roles={['admin']} />,
             children: [{ path: '/admin/users', element: withSuspense(<AdminUsersPage />) }],
           },
+          { path: '/email', element: withSuspense(<EmailPage />) },
           { path: '/settings', element: withSuspense(<SettingsPage />) },
         ],
       },

@@ -1,5 +1,5 @@
 import { apiFetch } from './client'
-import type { User, Client, Deal, Activity, Task, DealStatusChange } from '@/types'
+import type { User, Client, Deal, Activity, Task, DealStatusChange, EmailThread, EmailMessage } from '@/types'
 
 export const authApi = {
   login: (email: string, password: string) =>
@@ -56,4 +56,28 @@ export const tasksApi = {
     apiFetch<Task>(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   archive: (id: string) => apiFetch<Task>(`/api/tasks/${id}/archive`, { method: 'PATCH' }),
   delete: (id: string) => apiFetch<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
+}
+
+export const emailApi = {
+  status: () =>
+    apiFetch<{ connected: boolean; gmailEmail: string | null; watchExpiresAt: string | null }>('/api/email/auth/status'),
+  authUrl: () => apiFetch<{ url: string }>('/api/email/auth/url'),
+  disconnect: () => apiFetch<{ ok: boolean }>('/api/email/auth/disconnect', { method: 'DELETE' }),
+  threads: (params?: { clientId?: string; dealId?: string }) => {
+    const qs = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : ''
+    return apiFetch<EmailThread[]>(`/api/email/threads${qs}`)
+  },
+  thread: (threadId: string) =>
+    apiFetch<{ thread: EmailThread; messages: EmailMessage[] }>(`/api/email/threads/${threadId}`),
+  send: (data: { to: string; subject: string; body: string; clientId?: string; dealId?: string }) =>
+    apiFetch<{ thread: EmailThread; message: EmailMessage }>('/api/email/send', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  reply: (threadId: string, data: { body: string }) =>
+    apiFetch<EmailMessage>(`/api/email/threads/${threadId}/reply`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  sync: () => apiFetch<{ synced: number }>('/api/email/sync', { method: 'POST' }),
 }

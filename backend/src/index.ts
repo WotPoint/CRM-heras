@@ -9,6 +9,8 @@ import activitiesRouter from './routes/activities.js'
 import tasksRouter from './routes/tasks.js'
 import calendarRouter from './routes/calendar.js'
 import reportsRouter from './routes/reports.js'
+import emailRouter from './routes/email.js'
+import { startDeadlineNotifier } from './jobs/deadlineNotifier.js'
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
@@ -24,6 +26,7 @@ app.use('/api/activities', activitiesRouter)
 app.use('/api/tasks', tasksRouter)
 app.use('/api/calendar', calendarRouter)
 app.use('/api/reports', reportsRouter)
+app.use('/api/email', emailRouter)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', db: 'sqlite', timestamp: new Date().toISOString() }))
 
@@ -31,6 +34,7 @@ app.use((_req, res) => res.status(404).json({ error: 'Маршрут не най
 
 app.listen(PORT, async () => {
   await prisma.$connect()
+  startDeadlineNotifier()
   console.log(`\n🚀 CRM-heras backend: http://localhost:${PORT}`)
   console.log(`🗄️  База данных: SQLite (prisma/dev.db)`)
   console.log(`📋 Тест: открой backend/test.html\n`)

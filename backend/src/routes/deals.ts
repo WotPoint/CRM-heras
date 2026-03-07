@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
+import { sendNotification } from '../lib/notifications.js'
 
 const DEAL_STATUSES = ['new', 'negotiation', 'proposal_sent', 'awaiting_payment', 'won', 'lost']
 
@@ -124,6 +125,14 @@ router.patch(
       await prisma.dealStatusChange.create({
         data: { id: uuidv4(), dealId: deal.id, fromStatus: existing.status, toStatus: data.status, changedBy: req.user!.userId, changedAt: now },
       })
+
+      sendNotification('deal_status_changed', {
+        dealId: deal.id,
+        managerId: deal.managerId,
+        fromStatus: existing.status,
+        toStatus: data.status,
+        title: deal.title,
+      }).catch(err => console.error('[notification] deal_status_changed failed:', err))
     }
     res.json(deal)
   } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }

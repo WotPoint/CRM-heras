@@ -4,7 +4,7 @@ import {
   DashboardOutlined, TeamOutlined, DollarOutlined,
   CalendarOutlined, CheckSquareOutlined, BarChartOutlined,
   UserOutlined, SettingOutlined, LogoutOutlined,
-  MenuFoldOutlined, MenuUnfoldOutlined,
+  MenuFoldOutlined, MenuUnfoldOutlined, MailOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { key: '/deals',       Icon: DollarOutlined,      label: 'Сделки',       roles: ['manager', 'supervisor', 'admin'] },
   { key: '/activities',  Icon: CalendarOutlined,    label: 'Активности',   roles: ['manager', 'supervisor', 'admin'] },
   { key: '/tasks',       Icon: CheckSquareOutlined, label: 'Задачи',       roles: ['manager', 'supervisor', 'admin'] },
+  { key: '/email',       Icon: MailOutlined,        label: 'Почта',        roles: ['manager', 'supervisor', 'admin'] },
   { key: '/reports',     Icon: BarChartOutlined,    label: 'Отчёты',       roles: ['supervisor', 'admin'] },
   { key: '/admin/users', Icon: UserOutlined,        label: 'Пользователи', roles: ['admin'] },
   { key: '/settings',    Icon: SettingOutlined,     label: 'Настройки',    roles: ['manager', 'supervisor', 'admin'] },

@@ -145,3 +145,34 @@ export interface Task {
   createdAt: string
   completedAt?: string
 }
+
+// ============================================================
+// EMAIL
+// ============================================================
+export interface EmailThread {
+  id: string
+  gmailThreadId: string
+  subject: string
+  clientId?: string
+  dealId?: string
+  managerId: string
+  lastMessageAt: string
+  snippet?: string
+  createdAt: string
+  _count?: { messages: number }
+}
+
+export interface EmailMessage {
+  id: string
+  gmailMessageId: string
+  threadId: string
+  fromAddress: string
+  toAddress: string
+  subject: string
+  bodyText?: string
+  direction: 'inbound' | 'outbound'
+  sentAt: string
+  deliveryStatus: string
+  sentByUserId?: string
+  createdAt: string
+}

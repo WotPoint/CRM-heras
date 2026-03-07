@@ -1,14 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Card, Typography, Form, Input, Button, Tabs, Avatar,
   Switch, Select, Divider, Space, Tag, message, Row, Col,
+  Alert, Spin,
 } from 'antd'
 import {
   UserOutlined, LockOutlined, BellOutlined,
-  DragOutlined, PlusOutlined, DeleteOutlined,
+  DragOutlined, PlusOutlined, CheckCircleOutlined,
+  DisconnectOutlined, LinkOutlined,
 } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { DEAL_COLUMNS } from '@/pages/Deals/DealsList/DealsBoardView'
+import { emailApi } from '@/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -17,6 +21,55 @@ export default function SettingsPage() {
   const { currentUser, hasRole } = useAuthStore()
   const [profileForm] = Form.useForm()
   const [passwordForm] = Form.useForm()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  const [gmailStatus, setGmailStatus] = useState<{
+    connected: boolean; gmailEmail: string | null; watchExpiresAt: string | null
+  } | null>(null)
+  const [gmailLoading, setGmailLoading] = useState(true)
+  const [gmailConnecting, setGmailConnecting] = useState(false)
+  const [gmailDisconnecting, setGmailDisconnecting] = useState(false)
+
+  useEffect(() => {
+    const gmailParam = searchParams.get('gmail')
+    if (gmailParam === 'connected') {
+      message.success('Gmail успешно подключён!')
+      setSearchParams({}, { replace: true })
+    } else if (gmailParam === 'error') {
+      const reason = searchParams.get('reason') ?? 'unknown'
+      message.error(`Ошибка подключения Gmail: ${reason}`)
+      setSearchParams({}, { replace: true })
+    }
+
+    emailApi.status()
+      .then(setGmailStatus)
+      .catch(() => setGmailStatus({ connected: false, gmailEmail: null, watchExpiresAt: null }))
+      .finally(() => setGmailLoading(false))
+  }, [])
+
+  const handleGmailConnect = async () => {
+    setGmailConnecting(true)
+    try {
+      const { url } = await emailApi.authUrl()
+      window.location.href = url
+    } catch {
+      message.error('Не удалось получить ссылку для подключения')
+      setGmailConnecting(false)
+    }
+  }
+
+  const handleGmailDisconnect = async () => {
+    setGmailDisconnecting(true)
+    try {
+      await emailApi.disconnect()
+      setGmailStatus({ connected: false, gmailEmail: null, watchExpiresAt: null })
+      message.success('Gmail отключён')
+    } catch {
+      message.error('Ошибка при отключении Gmail')
+    } finally {
+      setGmailDisconnecting(false)
+    }
+  }
 
   const initials = currentUser?.name
     .split(' ')
@@ -212,9 +265,59 @@ export default function SettingsPage() {
     </div>
   ) : null
 
+  const gmailTab = (
+    <div style={{ maxWidth: 520 }}>
+      {gmailLoading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+      ) : gmailStatus?.connected ? (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="success"
+            showIcon
+            icon={<CheckCircleOutlined />}
+            message="Gmail подключён"
+            description={
+              <span>
+                Аккаунт: <strong>{gmailStatus.gmailEmail}</strong>
+                <br />
+                Входящие письма синхронизируются автоматически через push-уведомления.
+              </span>
+            }
+          />
+          <Button
+            danger
+            icon={<DisconnectOutlined />}
+            onClick={handleGmailDisconnect}
+            loading={gmailDisconnecting}
+          >
+            Отключить Gmail
+          </Button>
+        </Space>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="info"
+            showIcon
+            message="Gmail не подключён"
+            description="Подключите свой Google аккаунт чтобы отправлять и получать письма прямо из CRM."
+          />
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={handleGmailConnect}
+            loading={gmailConnecting}
+          >
+            Подключить Gmail
+          </Button>
+        </Space>
+      )}
+    </div>
+  )
+
   const tabs = [
     { key: 'profile', label: <span><UserOutlined style={{ marginRight: 4 }} />Профиль</span>, children: profileTab },
     { key: 'notifications', label: <span><BellOutlined style={{ marginRight: 4 }} />Уведомления</span>, children: notificationsTab },
+    { key: 'gmail', label: <span><LinkOutlined style={{ marginRight: 4 }} />Gmail</span>, children: gmailTab },
     ...(hasRole('admin') ? [{ key: 'dealStatuses', label: 'Этапы сделок', children: dealStatusesTab }] : []),
   ]
 

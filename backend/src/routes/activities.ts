@@ -4,6 +4,7 @@ import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
+import { sendNotification } from '../lib/notifications.js'
 
 const ACTIVITY_TYPES = ['call', 'email', 'meeting', 'note', 'status_change']
 
@@ -74,6 +75,15 @@ router.post(
           createdAt: new Date().toISOString(),
         },
       })
+
+      sendNotification('activity_logged', {
+        activityId: activity.id,
+        managerId: activity.managerId,
+        type: activity.type,
+        clientId: activity.clientId,
+        dealId: activity.dealId,
+      }).catch(err => console.error('[notification] activity_logged failed:', err))
+
       res.status(201).json(activity)
     } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }

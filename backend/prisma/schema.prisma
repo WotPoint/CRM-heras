@@ -21,14 +21,24 @@ model User {
   lastLoginAt        String?
   supervisorId       String?
 
-  supervisor    User?              @relation("UserSupervisor", fields: [supervisorId], references: [id])
-  reports       User[]             @relation("UserSupervisor")
-  clients       Client[]           @relation("ClientManager")
-  deals         Deal[]             @relation("DealManager")
-  activities    Activity[]         @relation("ActivityManager")
-  assignedTasks Task[]             @relation("TaskAssignee")
-  statusChanges DealStatusChange[] @relation("StatusChanger")
-  assignedRequests Request[]       @relation("RequestAssignee")
+  // Gmail OAuth 2.0
+  gmailRefreshToken String?
+  gmailAccessToken  String?
+  gmailTokenExpiry  String?
+  gmailEmail        String?
+  gmailWatchExpiry  String?
+  gmailHistoryId    String?
+
+  supervisor       User?              @relation("UserSupervisor", fields: [supervisorId], references: [id])
+  reports          User[]             @relation("UserSupervisor")
+  clients          Client[]           @relation("ClientManager")
+  deals            Deal[]             @relation("DealManager")
+  activities       Activity[]         @relation("ActivityManager")
+  assignedTasks    Task[]             @relation("TaskAssignee")
+  statusChanges    DealStatusChange[] @relation("StatusChanger")
+  assignedRequests Request[]          @relation("RequestAssignee")
+  emailThreads     EmailThread[]      @relation("ThreadManager")
+  sentEmails       EmailMessage[]     @relation("SentByUser")
 }
 
 model Company {
@@ -62,12 +72,13 @@ model Client {
   createdAt     String
   lastContactAt String?
 
-  manager    User       @relation("ClientManager", fields: [managerId], references: [id])
-  companyRef Company?   @relation("ClientCompany", fields: [companyId], references: [id])
-  deals      Deal[]     @relation("DealClient")
-  activities Activity[] @relation("ActivityClient")
-  tasks      Task[]     @relation("TaskClient")
-  requests   Request[]  @relation("RequestContact")
+  manager      User          @relation("ClientManager", fields: [managerId], references: [id])
+  companyRef   Company?      @relation("ClientCompany", fields: [companyId], references: [id])
+  deals        Deal[]        @relation("DealClient")
+  activities   Activity[]    @relation("ActivityClient")
+  tasks        Task[]        @relation("TaskClient")
+  requests     Request[]     @relation("RequestContact")
+  emailThreads EmailThread[] @relation("ThreadClient")
 }
 
 model Deal {
@@ -90,6 +101,7 @@ model Deal {
   activities    Activity[]         @relation("ActivityDeal")
   tasks         Task[]             @relation("TaskDeal")
   requests      Request[]          @relation("RequestDeal")
+  emailThreads  EmailThread[]      @relation("ThreadDeal")
 }
 
 model Request {
@@ -154,4 +166,39 @@ model Task {
   assignee User    @relation("TaskAssignee", fields: [assigneeId], references: [id])
   client   Client? @relation("TaskClient", fields: [clientId], references: [id])
   deal     Deal?   @relation("TaskDeal", fields: [dealId], references: [id])
+}
+
+model EmailThread {
+  id            String  @id
+  gmailThreadId String  @unique
+  subject       String
+  clientId      String?
+  dealId        String?
+  managerId     String
+  lastMessageAt String
+  snippet       String?
+  createdAt     String
+
+  manager  User           @relation("ThreadManager", fields: [managerId], references: [id])
+  client   Client?        @relation("ThreadClient", fields: [clientId], references: [id])
+  deal     Deal?          @relation("ThreadDeal", fields: [dealId], references: [id])
+  messages EmailMessage[] @relation("ThreadMessages")
+}
+
+model EmailMessage {
+  id             String  @id
+  gmailMessageId String  @unique
+  threadId       String
+  fromAddress    String
+  toAddress      String
+  subject        String
+  bodyText       String?
+  direction      String          // outbound | inbound
+  sentAt         String
+  deliveryStatus String  @default("sent")
+  sentByUserId   String?
+  createdAt      String
+
+  thread  EmailThread @relation("ThreadMessages", fields: [threadId], references: [id])
+  sentBy  User?       @relation("SentByUser", fields: [sentByUserId], references: [id])
 }
