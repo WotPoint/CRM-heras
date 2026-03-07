@@ -41,3 +41,6 @@ backend/nul
 
 # Vite cache
 .vite/
+
+# Batch scripts
+*.bat
