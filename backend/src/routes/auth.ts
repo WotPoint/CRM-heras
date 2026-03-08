@@ -1,10 +1,18 @@
 import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
+import { createHash, randomBytes } from 'crypto'
 import prisma from '../lib/prisma.js'
 import { authenticate, JWT_SECRET } from '../middleware/auth.js'
 
 const router = Router()
+
+// PKCE helpers
+function generateCodeVerifier() { return randomBytes(32).toString('base64url') }
+function generateCodeChallenge(v: string) { return createHash('sha256').update(v).digest('base64url') }
+
+// In-memory store for VK login state tokens (state → { codeVerifier, expires })
+const loginStates = new Map<string, { codeVerifier: string; expires: number }>()
 
 // Strip sensitive fields before sending user to client
 function safeUser(user: Record<string, unknown>) {
@@ -88,6 +96,117 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
     res.json(safeUser(user as unknown as Record<string, unknown>))
   } catch (e) {
     console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+  }
+})
+
+/**
+ * GET /api/auth/vk
+ * Redirects to VK ID OAuth 2.0 authorization page (new VK ID system)
+ */
+router.get('/vk', (_req: Request, res: Response) => {
+  const { VK_CLIENT_ID, VK_REDIRECT_URI_LOGIN } = process.env
+  if (!VK_CLIENT_ID || !VK_REDIRECT_URI_LOGIN) {
+    res.status(500).json({ error: 'VK OAuth не настроен (VK_CLIENT_ID / VK_REDIRECT_URI_LOGIN)' })
+    return
+  }
+  const codeVerifier = generateCodeVerifier()
+  const state = randomBytes(16).toString('hex')
+  loginStates.set(state, { codeVerifier, expires: Date.now() + 5 * 60 * 1000 })
+  const params = new URLSearchParams({
+    client_id: VK_CLIENT_ID,
+    redirect_uri: VK_REDIRECT_URI_LOGIN,
+    response_type: 'code',
+    state,
+    code_challenge: generateCodeChallenge(codeVerifier),
+    code_challenge_method: 'S256',
+  })
+  res.redirect(`https://id.vk.com/authorize?${params}`)
+})
+
+/**
+ * GET /api/auth/vk/callback
+ * VK ID redirects here with ?code= after user authorizes
+ * Finds user by vkId, issues JWT, redirects to frontend
+ */
+router.get('/vk/callback', async (req: Request, res: Response) => {
+  const FRONTEND_URL = process.env.FRONTEND_URL ?? 'http://localhost:5173'
+  const { code, state, device_id } = req.query as { code?: string; state?: string; device_id?: string }
+
+  if (!code) {
+    res.redirect(`${FRONTEND_URL}/login?vk_error=no_code`)
+    return
+  }
+
+  const loginEntry = state ? loginStates.get(state) : null
+  if (!loginEntry || loginEntry.expires < Date.now()) {
+    res.redirect(`${FRONTEND_URL}/login?vk_error=state_expired`)
+    return
+  }
+  loginStates.delete(state!)
+
+  try {
+    const { VK_CLIENT_ID, VK_CLIENT_SECRET, VK_REDIRECT_URI_LOGIN } = process.env
+    if (!VK_CLIENT_ID || !VK_CLIENT_SECRET || !VK_REDIRECT_URI_LOGIN) {
+      res.redirect(`${FRONTEND_URL}/login?vk_error=not_configured`)
+      return
+    }
+
+    // Exchange authorization code for access_token (VK ID OAuth 2.0 + PKCE)
+    const tokenBody: Record<string, string> = {
+      grant_type: 'authorization_code',
+      client_id: VK_CLIENT_ID,
+      client_secret: VK_CLIENT_SECRET,
+      redirect_uri: VK_REDIRECT_URI_LOGIN,
+      code,
+      code_verifier: loginEntry.codeVerifier,
+    }
+    if (device_id) tokenBody.device_id = device_id
+    const tokenRes = await fetch('https://id.vk.com/oauth2/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(tokenBody),
+    })
+    const tokenData = await tokenRes.json() as { access_token?: string; error?: string; error_description?: string }
+
+    if (tokenData.error || !tokenData.access_token) {
+      console.error('VK token error:', tokenData)
+      res.redirect(`${FRONTEND_URL}/login?vk_error=token_failed`)
+      return
+    }
+
+    // Get VK user info
+    const userInfoRes = await fetch('https://id.vk.com/oauth2/user_info', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ access_token: tokenData.access_token!, client_id: VK_CLIENT_ID }),
+    })
+    const userInfo = await userInfoRes.json() as { user?: { user_id: number } }
+    const vkUserId = userInfo.user?.user_id
+    if (!vkUserId) {
+      console.error('VK user_info error:', userInfo)
+      res.redirect(`${FRONTEND_URL}/login?vk_error=token_failed`)
+      return
+    }
+
+    const vkId = String(vkUserId)
+
+    // Find user by vkId
+    const user = await prisma.user.findUnique({ where: { vkId } })
+    if (!user) {
+      res.redirect(`${FRONTEND_URL}/login?vk_error=not_linked`)
+      return
+    }
+    if (!user.isActive) {
+      res.redirect(`${FRONTEND_URL}/login?vk_error=blocked`)
+      return
+    }
+
+    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date().toISOString() } })
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+    res.redirect(`${FRONTEND_URL}/auth/vk?token=${token}`)
+  } catch (e) {
+    console.error(e)
+    res.redirect(`${FRONTEND_URL}/login?vk_error=server_error`)
   }
 })
 

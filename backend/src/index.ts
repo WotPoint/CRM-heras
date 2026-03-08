@@ -10,6 +10,7 @@ import tasksRouter from './routes/tasks.js'
 import calendarRouter from './routes/calendar.js'
 import reportsRouter from './routes/reports.js'
 import emailRouter from './routes/email.js'
+import vkRouter from './routes/vk.js'
 import { startDeadlineNotifier } from './jobs/deadlineNotifier.js'
 
 const app = express()
@@ -27,6 +28,7 @@ app.use('/api/tasks', tasksRouter)
 app.use('/api/calendar', calendarRouter)
 app.use('/api/reports', reportsRouter)
 app.use('/api/email', emailRouter)
+app.use('/api/vk', vkRouter)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', db: 'sqlite', timestamp: new Date().toISOString() }))
 

@@ -58,6 +58,11 @@ export const tasksApi = {
   delete: (id: string) => apiFetch<void>(`/api/tasks/${id}`, { method: 'DELETE' }),
 }
 
+export const vkApi = {
+  getLinkUrl: () => apiFetch<{ url: string }>('/api/vk/link-url'),
+  unlink: () => apiFetch<{ ok: boolean }>('/api/vk/unlink', { method: 'DELETE' }),
+}
+
 export const emailApi = {
   status: () =>
     apiFetch<{ connected: boolean; gmailEmail: string | null; watchExpiresAt: string | null }>('/api/email/auth/status'),

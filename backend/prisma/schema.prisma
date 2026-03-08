@@ -21,6 +21,9 @@ model User {
   lastLoginAt        String?
   supervisorId       String?
 
+  // VK OAuth
+  vkId String? @unique
+
   // Gmail OAuth 2.0
   gmailRefreshToken String?
   gmailAccessToken  String?

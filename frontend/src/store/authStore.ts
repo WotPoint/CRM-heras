@@ -9,6 +9,7 @@ interface AuthState {
   isAuthenticated: boolean
   mustChangePassword: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  loginWithToken: (token: string) => Promise<void>
   logout: () => void
   clearMustChangePassword: () => void
   hasRole: (...roles: UserRole[]) => boolean
@@ -36,6 +37,21 @@ export const useAuthStore = create<AuthState>()(
         } catch (e) {
           return { success: false, error: (e as Error).message }
         }
+      },
+
+      loginWithToken: async (token: string) => {
+        // Fetch user data using the new token directly (no localStorage dependency)
+        const res = await fetch('http://localhost:3001/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!res.ok) throw new Error('Недействительный токен')
+        const user = await res.json() as User
+        set({
+          currentUser: user,
+          token,
+          isAuthenticated: true,
+          mustChangePassword: user.mustChangePassword ?? false,
+        })
       },
 
       logout: () => {

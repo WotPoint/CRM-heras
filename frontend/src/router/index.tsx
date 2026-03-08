@@ -19,6 +19,7 @@ const ReportsPage = lazy(() => import('@/pages/Reports/ReportsPage'))
 const AdminUsersPage = lazy(() => import('@/pages/Admin/Users/AdminUsersPage'))
 const SettingsPage = lazy(() => import('@/pages/Settings/SettingsPage'))
 const EmailPage = lazy(() => import('@/pages/Email/EmailPage'))
+const VKCallbackPage = lazy(() => import('@/pages/Auth/VKCallbackPage'))
 
 const PageLoader = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
@@ -34,6 +35,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: withSuspense(<LoginPage />),
+  },
+  {
+    path: '/auth/vk',
+    element: withSuspense(<VKCallbackPage />),
   },
   {
     // Change password — requires auth but bypasses mustChangePassword guard

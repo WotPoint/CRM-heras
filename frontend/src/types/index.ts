@@ -16,6 +16,8 @@ export interface User {
   lastLoginAt?: string
   /** Для менеджера — id руководителя */
   supervisorId?: string
+  /** VK ID для OAuth авторизации */
+  vkId?: string | null
 }
 
 // ============================================================

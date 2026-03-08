@@ -12,7 +12,7 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { DEAL_COLUMNS } from '@/pages/Deals/DealsList/DealsBoardView'
-import { emailApi } from '@/api'
+import { emailApi, vkApi } from '@/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -30,6 +30,10 @@ export default function SettingsPage() {
   const [gmailConnecting, setGmailConnecting] = useState(false)
   const [gmailDisconnecting, setGmailDisconnecting] = useState(false)
 
+  const [vkLinked, setVkLinked] = useState<boolean>(!!currentUser?.vkId)
+  const [vkLinking, setVkLinking] = useState(false)
+  const [vkUnlinking, setVkUnlinking] = useState(false)
+
   useEffect(() => {
     const gmailParam = searchParams.get('gmail')
     if (gmailParam === 'connected') {
@@ -38,6 +42,22 @@ export default function SettingsPage() {
     } else if (gmailParam === 'error') {
       const reason = searchParams.get('reason') ?? 'unknown'
       message.error(`Ошибка подключения Gmail: ${reason}`)
+      setSearchParams({}, { replace: true })
+    }
+
+    const vkParam = searchParams.get('vk')
+    if (vkParam === 'linked') {
+      message.success('VK аккаунт успешно привязан!')
+      setVkLinked(true)
+      setSearchParams({}, { replace: true })
+    } else if (vkParam === 'already_used') {
+      message.error('Этот VK аккаунт уже привязан к другому пользователю.')
+      setSearchParams({}, { replace: true })
+    } else if (vkParam === 'expired') {
+      message.error('Сессия привязки истекла. Попробуйте ещё раз.')
+      setSearchParams({}, { replace: true })
+    } else if (vkParam === 'error') {
+      message.error('Ошибка при привязке VK. Попробуйте ещё раз.')
       setSearchParams({}, { replace: true })
     }
 
@@ -68,6 +88,30 @@ export default function SettingsPage() {
       message.error('Ошибка при отключении Gmail')
     } finally {
       setGmailDisconnecting(false)
+    }
+  }
+
+  const handleVkLink = async () => {
+    setVkLinking(true)
+    try {
+      const { url } = await vkApi.getLinkUrl()
+      window.location.href = url
+    } catch {
+      message.error('Не удалось получить ссылку для привязки VK')
+      setVkLinking(false)
+    }
+  }
+
+  const handleVkUnlink = async () => {
+    setVkUnlinking(true)
+    try {
+      await vkApi.unlink()
+      setVkLinked(false)
+      message.success('VK аккаунт отвязан')
+    } catch {
+      message.error('Ошибка при отвязке VK')
+    } finally {
+      setVkUnlinking(false)
     }
   }
 
@@ -314,10 +358,57 @@ export default function SettingsPage() {
     </div>
   )
 
+  const vkTab = (
+    <div style={{ maxWidth: 520 }}>
+      {vkLinked ? (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="success"
+            showIcon
+            icon={<CheckCircleOutlined />}
+            message="VK аккаунт привязан"
+            description={
+              <span>
+                Вы можете входить в CRM через кнопку «Войти через VK» на странице авторизации.
+              </span>
+            }
+          />
+          <Button
+            danger
+            icon={<DisconnectOutlined />}
+            onClick={handleVkUnlink}
+            loading={vkUnlinking}
+          >
+            Отвязать VK аккаунт
+          </Button>
+        </Space>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="info"
+            showIcon
+            message="VK аккаунт не привязан"
+            description="Привяжите VK аккаунт, чтобы входить в CRM одним кликом без пароля."
+          />
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={handleVkLink}
+            loading={vkLinking}
+            style={{ background: '#0077ff', borderColor: '#0077ff' }}
+          >
+            Привязать VK аккаунт
+          </Button>
+        </Space>
+      )}
+    </div>
+  )
+
   const tabs = [
     { key: 'profile', label: <span><UserOutlined style={{ marginRight: 4 }} />Профиль</span>, children: profileTab },
     { key: 'notifications', label: <span><BellOutlined style={{ marginRight: 4 }} />Уведомления</span>, children: notificationsTab },
     { key: 'gmail', label: <span><LinkOutlined style={{ marginRight: 4 }} />Gmail</span>, children: gmailTab },
+    { key: 'vk', label: <span style={{ color: '#0077ff', fontWeight: 500 }}>VK</span>, children: vkTab },
     ...(hasRole('admin') ? [{ key: 'dealStatuses', label: 'Этапы сделок', children: dealStatusesTab }] : []),
   ]
 
