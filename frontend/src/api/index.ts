@@ -12,6 +12,8 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
+  exchangeVkCode: (code: string) =>
+    apiFetch<{ token: string }>(`/api/auth/vk/exchange?code=${encodeURIComponent(code)}`),
 }
 
 export const usersApi = {

@@ -2,10 +2,20 @@ import { Router, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import bcrypt from 'bcrypt'
 import { createHash, randomBytes } from 'crypto'
+import rateLimit from 'express-rate-limit'
 import prisma from '../lib/prisma.js'
 import { authenticate, JWT_SECRET } from '../middleware/auth.js'
 
 const router = Router()
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 минут
+  max: 10,                   // не более 10 попыток с одного IP
+  standardHeaders: true,     // отдавать RateLimit-* заголовки
+  legacyHeaders: false,
+  message: { error: 'Слишком много попыток входа. Повторите через 15 минут.' },
+  skip: () => process.env.NODE_ENV !== 'production',
+})
 
 // PKCE helpers
 function generateCodeVerifier() { return randomBytes(32).toString('base64url') }
@@ -13,6 +23,10 @@ function generateCodeChallenge(v: string) { return createHash('sha256').update(v
 
 // In-memory store for VK login state tokens (state → { codeVerifier, expires })
 const loginStates = new Map<string, { codeVerifier: string; expires: number }>()
+
+// One-time auth codes issued after VK callback (code → { token, expires })
+// Replaces putting the JWT directly in the redirect URL
+const authCodes = new Map<string, { token: string; expires: number }>()
 
 // Strip sensitive fields before sending user to client
 function safeUser(user: Record<string, unknown>) {
@@ -25,7 +39,7 @@ function safeUser(user: Record<string, unknown>) {
  * Body: { email: string, password: string }
  * Response: { token: string, user: User, mustChangePassword: boolean }
  */
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body as { email?: string; password?: string }
     if (!email || !password) { res.status(400).json({ error: 'Email и пароль обязательны' }); return }
@@ -203,11 +217,34 @@ router.get('/vk/callback', async (req: Request, res: Response) => {
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date().toISOString() } })
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
-    res.redirect(`${FRONTEND_URL}/auth/vk?token=${token}`)
+
+    // Безопасная передача токена: одноразовый код вместо JWT в URL
+    const authCode = randomBytes(16).toString('hex')
+    authCodes.set(authCode, { token, expires: Date.now() + 60_000 }) // TTL: 60 секунд
+    res.redirect(`${FRONTEND_URL}/auth/vk?code=${authCode}`)
   } catch (e) {
     console.error(e)
     res.redirect(`${FRONTEND_URL}/login?vk_error=server_error`)
   }
+})
+
+/**
+ * GET /api/auth/vk/exchange?code=xxx
+ * Обменивает одноразовый код на JWT-токен.
+ * Код действителен 60 секунд и уничтожается после первого использования.
+ */
+router.get('/vk/exchange', (req: Request, res: Response) => {
+  const { code } = req.query as { code?: string }
+  if (!code) { res.status(400).json({ error: 'Код не указан' }); return }
+
+  const entry = authCodes.get(code)
+  authCodes.delete(code) // удаляем сразу — одноразовый
+
+  if (!entry || entry.expires < Date.now()) {
+    res.status(401).json({ error: 'Код недействителен или истёк' }); return
+  }
+
+  res.json({ token: entry.token })
 })
 
 export default router

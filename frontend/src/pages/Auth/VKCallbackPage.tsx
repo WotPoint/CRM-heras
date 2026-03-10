@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Spin, Typography } from 'antd'
 import { useAuthStore } from '@/store/authStore'
+import { authApi } from '@/api'
 
 const { Text } = Typography
 
@@ -15,13 +16,14 @@ export default function VKCallbackPage() {
     if (called.current) return
     called.current = true
 
-    const token = searchParams.get('token')
-    if (!token) {
+    const code = searchParams.get('code')
+    if (!code) {
       navigate('/login?vk_error=no_token', { replace: true })
       return
     }
 
-    loginWithToken(token)
+    authApi.exchangeVkCode(code)
+      .then(({ token }) => loginWithToken(token))
       .then(() => navigate('/dashboard', { replace: true }))
       .catch(() => navigate('/login?vk_error=auth_failed', { replace: true }))
   }, [])
