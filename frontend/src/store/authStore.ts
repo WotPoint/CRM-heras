@@ -41,7 +41,7 @@ export const useAuthStore = create<AuthState>()(
 
       loginWithToken: async (token: string) => {
         // Fetch user data using the new token directly (no localStorage dependency)
-        const res = await fetch('http://localhost:3001/api/auth/me', {
+        const res = await fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
         })
         if (!res.ok) throw new Error('Недействительный токен')

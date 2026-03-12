@@ -1,5 +1,8 @@
 import express, { type Request, type Response, type NextFunction } from 'express'
 import cors from 'cors'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+import fs from 'fs'
 import prisma from './lib/prisma.js'
 import authRouter from './routes/auth.js'
 import usersRouter from './routes/users.js'
@@ -14,7 +17,15 @@ import vkRouter from './routes/vk.js'
 import { startDeadlineNotifier } from './jobs/deadlineNotifier.js'
 
 const app = express()
+// Amvera (и другие PaaS) стоят за reverse proxy — без этого express-rate-limit
+// падает с ERR_ERL_UNEXPECTED_X_FORWARDED_FOR
+app.set('trust proxy', 1)
 const PORT = process.env.PORT ?? 3001
+const isProd = process.env.NODE_ENV === 'production'
+
+// ESM не имеет __dirname — восстанавливаем через import.meta.url
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:5173']
 app.use(cors({
@@ -40,6 +51,17 @@ app.use('/api/email', emailRouter)
 app.use('/api/vk', vkRouter)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', db: 'sqlite', timestamp: new Date().toISOString() }))
+
+// В production раздаём собранный фронтенд
+// backend/dist/index.js → ../../frontend/dist (от корня репозитория)
+if (isProd) {
+  const frontendDist = join(__dirname, '../../frontend/dist')
+  if (fs.existsSync(frontendDist)) {
+    app.use(express.static(frontendDist))
+    // SPA fallback: все немаршрутизированные URL отдают index.html
+    app.get('*', (_req, res) => res.sendFile(join(frontendDist, 'index.html')))
+  }
+}
 
 app.use((_req, res) => res.status(404).json({ error: 'Маршрут не найден' }))
 

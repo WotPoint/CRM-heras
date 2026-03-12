@@ -1,0 +1,14 @@
+meta:
+  environment: nodejs
+  toolVersion: "20"
+
+build:
+  buildDir: .
+  additionalCommands:
+    - cd frontend && npm ci --include=dev && npm run build
+    - cd backend && npm ci --include=dev && npm run build
+
+run:
+  persistentStorage:
+    - /storage
+  runCmd: cd /app/backend && npm start
