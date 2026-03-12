@@ -10,7 +10,7 @@ build:
     - cd frontend && npm ci --include=dev && npm run build
     - cd backend && npm ci --include=dev && npm run build
   artifacts:
-    "*": /
+    "*": "/"
 
 run:
   command: cd /app/backend && npm start
