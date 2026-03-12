@@ -7,15 +7,12 @@ async function main() {
   console.log('🌱 Seeding database...')
   const passwordHash = await bcrypt.hash('123456', 10)
 
-  // Clear in reverse FK order
-  await prisma.request.deleteMany()
-  await prisma.task.deleteMany()
-  await prisma.activity.deleteMany()
-  await prisma.dealStatusChange.deleteMany()
-  await prisma.deal.deleteMany()
-  await prisma.client.deleteMany()
-  await prisma.company.deleteMany()
-  await prisma.user.deleteMany()
+  // Check if already seeded
+  const existingUsers = await prisma.user.count()
+  if (existingUsers > 0) {
+    console.log('⏭️  Database already seeded, skipping.')
+    return
+  }
 
   // ─── Users ─────────────────────────────────────────────────────────────────
   // Create supervisor and admin first (no supervisorId dependency)

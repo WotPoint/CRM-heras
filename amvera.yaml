@@ -8,6 +8,6 @@ build:
   additionalCommands: cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install --include=dev && npm run build
 
 run:
-  command: cd /app/backend && npx prisma migrate deploy && node dist/index.js
+  command: cd /app/backend && npx prisma migrate deploy && npx prisma db seed && node dist/index.js
   persistenceMount: /storage
   containerPort: 3001
