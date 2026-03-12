@@ -16,7 +16,7 @@ function makeReqRes(authHeader?: string) {
   return { req, res, status, json, next }
 }
 
-function makeValidToken(payload = { userId: 'u1', role: 'manager' as const }) {
+function makeValidToken(payload: { userId: string; role: 'manager' | 'supervisor' | 'admin' } = { userId: 'u1', role: 'manager' }) {
   return jwt.sign(payload, SECRET, { expiresIn: '1h' })
 }
 
