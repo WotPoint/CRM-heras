@@ -2,18 +2,12 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "20"
+    version: 20
 
 build:
-  skip: false
-  additionalCommands:
-    - "cd frontend && npm ci --include=dev && npm run build"
-    - "cd backend && npm ci --include=dev && npm run build"
-  artifacts:
-    "*": /
+  additionalCommands: cd frontend && npm install --include=dev && npm run build && cd ../backend && npm install --include=dev && npm run build
 
 run:
-  command: "cd /app/backend && npm start"
+  command: cd /app/backend && npx prisma migrate deploy && node dist/index.js
   persistenceMount: /storage
-  containerPort: "3000"
-  servicePort: "80"
+  containerPort: 3001
