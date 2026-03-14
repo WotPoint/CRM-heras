@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
 import { sendNotification } from '../lib/notifications.js'
+import { logger } from '../lib/logger.js'
 
 const TASK_STATUSES = ['new', 'in_progress', 'done']
 const TASK_PRIORITIES = ['low', 'medium', 'high']
@@ -25,7 +26,7 @@ router.get('/archived', requireRole('admin', 'supervisor'), async (_req: Request
       orderBy: { archivedAt: 'desc' },
     })
     res.json(list)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -51,7 +52,7 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(list)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -63,7 +64,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!task) { res.status(404).json({ error: 'Задача не найдена' }); return }
     if (!canView(req.user!.role, req.user!.userId, task.assigneeId)) { res.status(403).json({ error: 'Нет доступа' }); return }
     res.json(task)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -97,16 +98,18 @@ router.post(
         },
       })
 
+      logger.info('task.created', { userId: req.user!.userId, taskId: task.id, assigneeId: task.assigneeId, priority: task.priority })
+
       sendNotification('task_assigned', {
         taskId: task.id,
         assigneeId: task.assigneeId,
         title: task.title,
         deadline: task.deadline,
         clientId: task.clientId,
-      }).catch(err => console.error('[notification] task_assigned failed:', err))
+      }).catch(err => logger.error('notification.failed', { event: 'task_assigned', message: (err as Error).message }))
 
       res.status(201).json(task)
-    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+    } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -130,12 +133,15 @@ router.patch(
 
       const { id: _id, createdAt: _ca, ...data } = req.body
 
-      if (data.status === 'done' && existing.status !== 'done') data.completedAt = new Date().toISOString()
+      if (data.status === 'done' && existing.status !== 'done') {
+        data.completedAt = new Date().toISOString()
+        logger.info('task.completed', { userId: req.user!.userId, taskId: existing.id, assigneeId: existing.assigneeId })
+      }
       if (data.status && data.status !== 'done') data.completedAt = null
 
       const task = await prisma.task.update({ where: { id: req.params.id }, data })
       res.json(task)
-    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+    } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -152,8 +158,9 @@ router.patch('/:id/archive', requireRole('admin', 'supervisor'), async (req: Req
       where: { id: req.params.id },
       data: { isArchived: true, archivedAt: new Date().toISOString() },
     })
+    logger.info('task.archived', { userId: req.user!.userId, taskId: req.params.id })
     res.json(task)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -165,8 +172,9 @@ router.delete('/:id', requireRole('admin', 'supervisor'), async (req: Request, r
     if (!existing) { res.status(404).json({ error: 'Задача не найдена' }); return }
 
     await prisma.task.delete({ where: { id: req.params.id } })
+    logger.info('task.deleted', { userId: req.user!.userId, taskId: req.params.id })
     res.json({ message: 'Задача удалена' })
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('tasks.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 export default router

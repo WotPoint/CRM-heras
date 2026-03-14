@@ -5,6 +5,7 @@ import prisma from '../lib/prisma.js'
 import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { validate } from '../middleware/validate.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -27,7 +28,7 @@ router.get('/', async (req: Request, res: Response) => {
     const where = (role === 'admin' || role === 'supervisor') ? {} : { isActive: true }
     const users = await prisma.user.findMany({ where, orderBy: { createdAt: 'asc' } })
     res.json(users.map((u) => safeUser(u as unknown as Record<string, unknown>)))
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('users.list_error', { message: (e as Error).message }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -38,7 +39,7 @@ router.get('/:id', requireRole('admin', 'supervisor'), async (req: Request, res:
     const user = await prisma.user.findUnique({ where: { id: req.params.id } })
     if (!user) { res.status(404).json({ error: 'Пользователь не найден' }); return }
     res.json(safeUser(user as unknown as Record<string, unknown>))
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('users.get_error', { message: (e as Error).message }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -76,8 +77,9 @@ router.post(
           createdAt: new Date().toISOString(),
         },
       })
+      logger.info('user.created', { actorId: req.user!.userId, userId: user.id, email: user.email, role: user.role })
       res.status(201).json(safeUser(user as unknown as Record<string, unknown>))
-    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+    } catch (e) { logger.error('users.create_error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -101,10 +103,11 @@ router.patch(
       const { id: _id, createdAt: _ca, password, ...data } = req.body
       if (password) {
         data.passwordHash = await bcrypt.hash(password, 10)
+        logger.info('user.password_reset', { actorId: req.user!.userId, userId: req.params.id })
       }
       const user = await prisma.user.update({ where: { id: req.params.id }, data })
       res.json(safeUser(user as unknown as Record<string, unknown>))
-    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+    } catch (e) { logger.error('users.update_error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -117,8 +120,9 @@ router.delete('/:id', requireRole('admin'), async (req: Request, res: Response) 
     if (!existing) { res.status(404).json({ error: 'Пользователь не найден' }); return }
 
     const user = await prisma.user.update({ where: { id: req.params.id }, data: { isActive: false } })
+    logger.info('user.blocked', { actorId: req.user!.userId, userId: req.params.id, email: existing.email })
     res.json({ message: 'Пользователь заблокирован', user: safeUser(user as unknown as Record<string, unknown>) })
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('users.block_error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 export default router

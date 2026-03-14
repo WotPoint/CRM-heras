@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import fs from 'fs'
 import prisma from './lib/prisma.js'
+import { logger } from './lib/logger.js'
+import { requestLogger } from './middleware/requestLogger.js'
 import authRouter from './routes/auth.js'
 import usersRouter from './routes/users.js'
 import clientsRouter from './routes/clients.js'
@@ -38,6 +40,7 @@ app.use(cors({
   credentials: true,
 }))
 app.use(express.json())
+app.use(requestLogger)
 
 app.use('/api/auth', authRouter)
 app.use('/api/users', usersRouter)
@@ -68,13 +71,14 @@ app.use((_req, res) => res.status(404).json({ error: 'Маршрут не най
 // Глобальный обработчик ошибок — перехватывает всё, что не поймали роуты
 // Возвращает только текст ошибки, без stack trace
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('[unhandled error]', err)
+  logger.error('unhandled_error', { message: err.message, stack: err.stack, name: err.name })
   res.status(500).json({ error: 'Внутренняя ошибка сервера' })
 })
 
 app.listen(PORT, async () => {
   await prisma.$connect()
   startDeadlineNotifier()
+  logger.info('server_started', { port: PORT, env: process.env.NODE_ENV ?? 'development' })
   console.log(`\n🚀 CRM-heras backend: http://localhost:${PORT}`)
   console.log(`🗄️  База данных: SQLite (prisma/dev.db)`)
   console.log(`📋 Тест: открой backend/test.html\n`)

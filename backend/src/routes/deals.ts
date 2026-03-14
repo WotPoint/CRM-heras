@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
 import { sendNotification } from '../lib/notifications.js'
+import { logger } from '../lib/logger.js'
 
 const DEAL_STATUSES = ['new', 'negotiation', 'proposal_sent', 'awaiting_payment', 'won', 'lost']
 
@@ -32,7 +33,7 @@ router.get('/', async (req: Request, res: Response) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(deals)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -44,7 +45,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!deal) { res.status(404).json({ error: 'Сделка не найдена' }); return }
     if (!canView(req.user!.role, req.user!.userId, deal.managerId)) { res.status(403).json({ error: 'Нет доступа' }); return }
     res.json(deal)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -61,7 +62,7 @@ router.get('/:id/history', async (req: Request, res: Response) => {
       orderBy: { changedAt: 'asc' },
     })
     res.json(history)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -93,8 +94,9 @@ router.post(
       data: { id: uuidv4(), dealId: deal.id, fromStatus: null, toStatus: dealStatus, changedBy: req.user!.userId, changedAt: now },
     })
 
+    logger.info('deal.created', { userId: req.user!.userId, dealId: deal.id, clientId, managerId: assignedManagerId, status: dealStatus })
     res.status(201).json(deal)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -126,16 +128,18 @@ router.patch(
         data: { id: uuidv4(), dealId: deal.id, fromStatus: existing.status, toStatus: data.status, changedBy: req.user!.userId, changedAt: now },
       })
 
+      logger.info('deal.status_changed', { userId: req.user!.userId, dealId: deal.id, from: existing.status, to: data.status })
+
       sendNotification('deal_status_changed', {
         dealId: deal.id,
         managerId: deal.managerId,
         fromStatus: existing.status,
         toStatus: data.status,
         title: deal.title,
-      }).catch(err => console.error('[notification] deal_status_changed failed:', err))
+      }).catch(err => logger.error('notification.failed', { event: 'deal_status_changed', message: (err as Error).message }))
     }
     res.json(deal)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -150,8 +154,9 @@ router.delete('/:id', requireRole('admin', 'supervisor'), async (req: Request, r
     // Cascade: remove status changes first (SQLite has no cascade by default)
     await prisma.dealStatusChange.deleteMany({ where: { dealId: req.params.id } })
     await prisma.deal.delete({ where: { id: req.params.id } })
+    logger.info('deal.deleted', { userId: req.user!.userId, dealId: req.params.id, clientId: existing.clientId })
     res.json({ message: 'Сделка удалена', deal: existing })
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('deals.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 export default router

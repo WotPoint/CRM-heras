@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'crypto'
 import rateLimit from 'express-rate-limit'
 import prisma from '../lib/prisma.js'
 import { authenticate, JWT_SECRET } from '../middleware/auth.js'
+import { logger } from '../lib/logger.js'
 
 const router = Router()
 
@@ -46,18 +47,29 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
 
     const trimmedEmail = email.trim().toLowerCase()
     const user = await prisma.user.findUnique({ where: { email: trimmedEmail } })
-    if (!user) { res.status(401).json({ error: 'Неверный email или пароль' }); return }
-    if (!user.isActive) { res.status(403).json({ error: 'Учётная запись заблокирована' }); return }
+    if (!user) {
+      logger.warn('user.login_failed', { email: trimmedEmail, reason: 'not_found', ip: req.ip })
+      res.status(401).json({ error: 'Неверный email или пароль' }); return
+    }
+    if (!user.isActive) {
+      logger.warn('user.login_blocked', { userId: user.id, email: trimmedEmail, ip: req.ip })
+      res.status(403).json({ error: 'Учётная запись заблокирована' }); return
+    }
 
     const passwordValid = await bcrypt.compare(password, user.passwordHash)
-    if (!passwordValid) { res.status(401).json({ error: 'Неверный email или пароль' }); return }
+    if (!passwordValid) {
+      logger.warn('user.login_failed', { userId: user.id, email: trimmedEmail, reason: 'wrong_password', ip: req.ip })
+      res.status(401).json({ error: 'Неверный email или пароль' }); return
+    }
 
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date().toISOString() } })
 
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+    logger.info('user.login', { userId: user.id, email: user.email, role: user.role, ip: req.ip })
     res.json({ token, user: safeUser(user as unknown as Record<string, unknown>) })
   } catch (e) {
-    console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+    logger.error('login_error', { message: (e as Error).message, stack: (e as Error).stack })
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' })
   }
 })
 
@@ -94,9 +106,11 @@ router.post('/change-password', authenticate, async (req: Request, res: Response
       data: { passwordHash: newHash, mustChangePassword: false },
     })
 
+    logger.info('user.password_changed', { userId: user.id, forced: user.mustChangePassword })
     res.json({ ok: true })
   } catch (e) {
-    console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+    logger.error('change_password_error', { message: (e as Error).message, stack: (e as Error).stack })
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' })
   }
 })
 
@@ -109,7 +123,8 @@ router.get('/me', authenticate, async (req: Request, res: Response) => {
     if (!user) { res.status(404).json({ error: 'Пользователь не найден' }); return }
     res.json(safeUser(user as unknown as Record<string, unknown>))
   } catch (e) {
-    console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' })
+    logger.error('me_error', { message: (e as Error).message, stack: (e as Error).stack })
+    res.status(500).json({ error: 'Внутренняя ошибка сервера' })
   }
 })
 
@@ -183,7 +198,7 @@ router.get('/vk/callback', async (req: Request, res: Response) => {
     const tokenData = await tokenRes.json() as { access_token?: string; error?: string; error_description?: string }
 
     if (tokenData.error || !tokenData.access_token) {
-      console.error('VK token error:', tokenData)
+      logger.error('vk.token_failed', { error: tokenData.error, description: tokenData.error_description })
       res.redirect(`${FRONTEND_URL}/login?vk_error=token_failed`)
       return
     }
@@ -197,7 +212,7 @@ router.get('/vk/callback', async (req: Request, res: Response) => {
     const userInfo = await userInfoRes.json() as { user?: { user_id: number } }
     const vkUserId = userInfo.user?.user_id
     if (!vkUserId) {
-      console.error('VK user_info error:', userInfo)
+      logger.error('vk.user_info_failed', { response: userInfo })
       res.redirect(`${FRONTEND_URL}/login?vk_error=token_failed`)
       return
     }
@@ -218,12 +233,14 @@ router.get('/vk/callback', async (req: Request, res: Response) => {
     await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date().toISOString() } })
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
 
+    logger.info('user.vk_login', { userId: user.id, email: user.email, role: user.role, vkId })
+
     // Безопасная передача токена: одноразовый код вместо JWT в URL
     const authCode = randomBytes(16).toString('hex')
     authCodes.set(authCode, { token, expires: Date.now() + 60_000 }) // TTL: 60 секунд
     res.redirect(`${FRONTEND_URL}/auth/vk?code=${authCode}`)
   } catch (e) {
-    console.error(e)
+    logger.error('vk_callback_error', { message: (e as Error).message, stack: (e as Error).stack })
     res.redirect(`${FRONTEND_URL}/login?vk_error=server_error`)
   }
 })

@@ -5,6 +5,7 @@ import { authenticate } from '../middleware/auth.js'
 import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter, fmtClient, serializeTags } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
+import { logger } from '../lib/logger.js'
 
 const CLIENT_STATUSES = ['lead', 'active', 'regular', 'archived']
 
@@ -45,7 +46,7 @@ router.get('/', async (req: Request, res: Response) => {
     }
 
     res.json(list)
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -57,7 +58,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     if (!row) { res.status(404).json({ error: 'Клиент не найден' }); return }
     if (!canView(req.user!.role, req.user!.userId, row.managerId)) { res.status(403).json({ error: 'Нет доступа' }); return }
     res.json(fmtClient(row as Record<string, unknown>))
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 /**
@@ -94,8 +95,9 @@ router.post(
           createdAt: new Date().toISOString(),
         },
       })
+      logger.info('client.created', { userId: req.user!.userId, clientId: row.id, managerId: row.managerId })
       res.status(201).json(fmtClient(row as Record<string, unknown>))
-    } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+    } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -124,7 +126,7 @@ router.patch(
       data: { ...rest, ...(tags !== undefined ? { tags: serializeTags(tags) } : {}) },
     })
     res.json(fmtClient(updated as Record<string, unknown>))
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }
 )
 
@@ -137,8 +139,9 @@ router.delete('/:id', requireRole('admin', 'supervisor'), async (req: Request, r
     if (!row) { res.status(404).json({ error: 'Клиент не найден' }); return }
 
     await prisma.client.delete({ where: { id: req.params.id } })
+    logger.info('client.deleted', { userId: req.user!.userId, clientId: req.params.id })
     res.json({ message: 'Клиент удалён' })
-  } catch (e) { console.error(e); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
+  } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
 })
 
 export default router
