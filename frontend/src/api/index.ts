@@ -65,6 +65,12 @@ export const vkApi = {
   unlink: () => apiFetch<{ ok: boolean }>('/api/vk/unlink', { method: 'DELETE' }),
 }
 
+export const telegramApi = {
+  status: () => apiFetch<{ linked: boolean; linkedAt: string | null }>('/api/telegram/status'),
+  linkToken: () => apiFetch<{ token: string; url: string | null }>('/api/telegram/link-token'),
+  unlink: () => apiFetch<{ ok: boolean }>('/api/telegram/unlink', { method: 'DELETE' }),
+}
+
 export const emailApi = {
   status: () =>
     apiFetch<{ connected: boolean; gmailEmail: string | null; watchExpiresAt: string | null }>('/api/email/auth/status'),

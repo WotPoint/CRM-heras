@@ -12,7 +12,7 @@ import {
 import { useSearchParams } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { DEAL_COLUMNS } from '@/pages/Deals/DealsList/DealsBoardView'
-import { emailApi, vkApi } from '@/api'
+import { emailApi, vkApi, telegramApi } from '@/api'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -33,6 +33,11 @@ export default function SettingsPage() {
   const [vkLinked, setVkLinked] = useState<boolean>(!!currentUser?.vkId)
   const [vkLinking, setVkLinking] = useState(false)
   const [vkUnlinking, setVkUnlinking] = useState(false)
+
+  const [tgStatus, setTgStatus] = useState<{ linked: boolean; linkedAt: string | null } | null>(null)
+  const [tgLoading, setTgLoading] = useState(true)
+  const [tgLinking, setTgLinking] = useState(false)
+  const [tgUnlinking, setTgUnlinking] = useState(false)
 
   useEffect(() => {
     const gmailParam = searchParams.get('gmail')
@@ -65,6 +70,11 @@ export default function SettingsPage() {
       .then(setGmailStatus)
       .catch(() => setGmailStatus({ connected: false, gmailEmail: null, watchExpiresAt: null }))
       .finally(() => setGmailLoading(false))
+
+    telegramApi.status()
+      .then(setTgStatus)
+      .catch(() => setTgStatus({ linked: false, linkedAt: null }))
+      .finally(() => setTgLoading(false))
   }, [])
 
   const handleGmailConnect = async () => {
@@ -358,6 +368,82 @@ export default function SettingsPage() {
     </div>
   )
 
+  const handleTgLink = async () => {
+    setTgLinking(true)
+    try {
+      const { url, token } = await telegramApi.linkToken()
+      if (url) {
+        window.open(url, '_blank')
+        message.info('Перейдите в Telegram и нажмите /start, затем вернитесь и обновите страницу')
+      } else {
+        message.info(`Откройте бота и отправьте команду: /start ${token}`)
+      }
+    } catch {
+      message.error('Не удалось получить ссылку для привязки')
+    } finally {
+      setTgLinking(false)
+    }
+  }
+
+  const handleTgUnlink = async () => {
+    setTgUnlinking(true)
+    try {
+      await telegramApi.unlink()
+      setTgStatus({ linked: false, linkedAt: null })
+      message.success('Telegram отвязан')
+    } catch {
+      message.error('Ошибка при отвязке Telegram')
+    } finally {
+      setTgUnlinking(false)
+    }
+  }
+
+  const telegramTab = (
+    <div style={{ maxWidth: 520 }}>
+      {tgLoading ? (
+        <div style={{ textAlign: 'center', padding: 40 }}><Spin /></div>
+      ) : tgStatus?.linked ? (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="success"
+            showIcon
+            icon={<CheckCircleOutlined />}
+            message="Telegram подключён"
+            description={
+              <span>
+                Вы будете получать уведомления о задачах, сделках и клиентах прямо в Telegram.
+                {tgStatus.linkedAt && (
+                  <><br />Привязан: <strong>{new Date(tgStatus.linkedAt).toLocaleDateString('ru-RU')}</strong></>
+                )}
+              </span>
+            }
+          />
+          <Button danger icon={<DisconnectOutlined />} onClick={handleTgUnlink} loading={tgUnlinking}>
+            Отвязать Telegram
+          </Button>
+        </Space>
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Alert
+            type="info"
+            showIcon
+            message="Telegram не подключён"
+            description="Привяжите Telegram, чтобы получать уведомления о задачах, сделках и новых клиентах."
+          />
+          <Button
+            type="primary"
+            icon={<LinkOutlined />}
+            onClick={handleTgLink}
+            loading={tgLinking}
+            style={{ background: '#229ED9', borderColor: '#229ED9' }}
+          >
+            Подключить Telegram
+          </Button>
+        </Space>
+      )}
+    </div>
+  )
+
   const vkTab = (
     <div style={{ maxWidth: 520 }}>
       {vkLinked ? (
@@ -408,6 +494,7 @@ export default function SettingsPage() {
     { key: 'profile', label: <span><UserOutlined style={{ marginRight: 4 }} />Профиль</span>, children: profileTab },
     { key: 'notifications', label: <span><BellOutlined style={{ marginRight: 4 }} />Уведомления</span>, children: notificationsTab },
     { key: 'gmail', label: <span><LinkOutlined style={{ marginRight: 4 }} />Gmail</span>, children: gmailTab },
+    { key: 'telegram', label: <span style={{ color: '#229ED9', fontWeight: 500 }}>Telegram</span>, children: telegramTab },
     { key: 'vk', label: <span style={{ color: '#0077ff', fontWeight: 500 }}>VK</span>, children: vkTab },
     ...(hasRole('admin') ? [{ key: 'dealStatuses', label: 'Этапы сделок', children: dealStatusesTab }] : []),
   ]
