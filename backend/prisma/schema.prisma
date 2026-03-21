@@ -32,6 +32,12 @@ model User {
   gmailWatchExpiry  String?
   gmailHistoryId    String?
 
+  // Telegram
+  telegramChatId     String?
+  telegramLinkedAt   String?
+  telegramLinkToken  String?
+  telegramLinkExpiry String?
+
   supervisor       User?              @relation("UserSupervisor", fields: [supervisorId], references: [id])
   reports          User[]             @relation("UserSupervisor")
   clients          Client[]           @relation("ClientManager")

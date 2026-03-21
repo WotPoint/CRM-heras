@@ -6,6 +6,7 @@ import { requireRole } from '../middleware/role.js'
 import { canView, ownerFilter, fmtClient, serializeTags } from '../lib/helpers.js'
 import { validate } from '../middleware/validate.js'
 import { logger } from '../lib/logger.js'
+import { sendNotification } from '../lib/notifications.js'
 
 const CLIENT_STATUSES = ['lead', 'active', 'regular', 'archived']
 
@@ -96,6 +97,17 @@ router.post(
         },
       })
       logger.info('client.created', { userId: req.user!.userId, clientId: row.id, managerId: row.managerId })
+
+      if (row.managerId) {
+        sendNotification('client_assigned', {
+          clientId: row.id,
+          managerId: row.managerId,
+          firstName: row.firstName,
+          lastName: row.lastName,
+          phone: row.phone ?? null,
+        }).catch(() => undefined)
+      }
+
       res.status(201).json(fmtClient(row as Record<string, unknown>))
     } catch (e) { logger.error('clients.error', { message: (e as Error).message, stack: (e as Error).stack }); res.status(500).json({ error: 'Внутренняя ошибка сервера' }) }
   }

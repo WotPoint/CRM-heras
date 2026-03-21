@@ -16,7 +16,10 @@ import calendarRouter from './routes/calendar.js'
 import reportsRouter from './routes/reports.js'
 import emailRouter from './routes/email.js'
 import vkRouter from './routes/vk.js'
+import telegramRouter from './routes/telegram.js'
 import { startDeadlineNotifier } from './jobs/deadlineNotifier.js'
+import { createBot } from './bot/index.js'
+import { startBot } from './bot/startup.js'
 
 const app = express()
 // Amvera (и другие PaaS) стоят за reverse proxy — без этого express-rate-limit
@@ -52,6 +55,7 @@ app.use('/api/calendar', calendarRouter)
 app.use('/api/reports', reportsRouter)
 app.use('/api/email', emailRouter)
 app.use('/api/vk', vkRouter)
+app.use('/api/telegram', telegramRouter)
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', db: 'sqlite', timestamp: new Date().toISOString() }))
 
@@ -78,6 +82,20 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 app.listen(PORT, async () => {
   await prisma.$connect()
   startDeadlineNotifier()
+
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    try {
+      const bot = createBot()
+      await startBot(bot)
+      logger.info('telegram_bot_initialized')
+      console.log(`🤖 Telegram-бот запущен`)
+    } catch (err) {
+      logger.error('telegram_bot_init_failed', { error: (err as Error).message })
+    }
+  } else {
+    logger.warn('telegram_bot_skipped', { reason: 'TELEGRAM_BOT_TOKEN not set' })
+  }
+
   logger.info('server_started', { port: PORT, env: process.env.NODE_ENV ?? 'development' })
   console.log(`\n🚀 CRM-heras backend: http://localhost:${PORT}`)
   console.log(`🗄️  База данных: SQLite (prisma/dev.db)`)
