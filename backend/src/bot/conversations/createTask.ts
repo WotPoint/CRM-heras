@@ -1,8 +1,10 @@
 import { type Conversation } from '@grammyjs/conversations'
+import { InlineKeyboard } from 'grammy'
 import { type BotContext } from '../context.js'
 import { priorityKeyboard } from '../keyboards/priority.js'
 import { clientSelectKeyboard } from '../keyboards/clientSelect.js'
 import { mainMenuKeyboard } from '../keyboards/mainMenu.js'
+import { askText, waitCallback } from './helpers.js'
 import prisma from '../../lib/prisma.js'
 import { v4 as uuidv4 } from 'uuid'
 import { logger } from '../../lib/logger.js'
@@ -11,7 +13,6 @@ const PRIORITY_LABELS: Record<string, string> = { low: '🟢 Низкий', medi
 
 function parseDate(text: string): Date | null {
   const clean = text.trim()
-  // дд.мм.гггг или дд.мм
   const m = clean.match(/^(\d{1,2})\.(\d{1,2})(?:\.(\d{4}))?$/)
   if (!m) return null
   const day = parseInt(m[1])
@@ -32,47 +33,82 @@ export async function createTaskConversation(
   if (!user) return
 
   // Шаг 1: Название
-  await ctx.reply('📝 <b>Новая задача</b>\n\nВведите название задачи (или /отмена):', { parse_mode: 'HTML' })
-  const titleCtx = await conversation.wait()
-  if (titleCtx.message?.text?.startsWith('/')) { await titleCtx.reply('Отменено.'); return }
-  const title = titleCtx.message?.text?.trim() ?? ''
-  if (!title) { await titleCtx.reply('Отменено.'); return }
+  await ctx.reply('📝 <b>Новая задача</b>\n\nВведите название задачи:', { parse_mode: 'HTML' })
+  const title = await askText(conversation, 'Введите название задачи:')
+  if (!title) return
 
   // Шаг 2: Приоритет
-  await titleCtx.reply('Выберите приоритет:', { reply_markup: priorityKeyboard() })
-  const priCtx = await conversation.waitForCallbackQuery(/^priority:/)
-  await priCtx.answerCallbackQuery()
-  const priority = priCtx.callbackQuery.data.split(':')[1]
+  await ctx.reply('Выберите приоритет:', { reply_markup: priorityKeyboard() })
+  const priResult = await waitCallback(conversation, /^priority:/)
+  if (!priResult) return
+  await priResult.ctx.answerCallbackQuery()
+  const priority = priResult.data.split(':')[1]
 
-  // Шаг 3: Дедлайн
-  await priCtx.reply('Укажите дедлайн (дд.мм или дд.мм.гггг) или нажмите «Пропустить»:', {
-    reply_markup: { inline_keyboard: [[{ text: '⏭ Пропустить', callback_data: 'deadline:skip' }]] },
+  // Шаг 3: Дедлайн (с повтором при неверном формате)
+  await ctx.reply('Укажите дедлайн (дд.мм или дд.мм.гггг) или нажмите «Пропустить»:', {
+    reply_markup: new InlineKeyboard().text('⏭ Пропустить', 'deadline:skip'),
   })
   let deadline: string | null = null
-  const dlCtx = await conversation.wait()
-  if (dlCtx.callbackQuery?.data === 'deadline:skip') {
-    await dlCtx.answerCallbackQuery()
-  } else if (dlCtx.message?.text) {
-    const parsed = parseDate(dlCtx.message.text)
-    if (parsed) {
-      deadline = parsed.toISOString()
-      await dlCtx.reply(`📅 Дедлайн: ${parsed.toLocaleDateString('ru-RU')}`)
-    } else {
-      await dlCtx.reply('Не понял формат. Дедлайн не установлен.')
+  deadlineLoop: while (true) {
+    const dlCtx = await conversation.wait()
+    if (dlCtx.message?.text?.startsWith('/')) { await dlCtx.reply('Диалог завершён.'); return }
+    if (dlCtx.callbackQuery?.data === 'deadline:skip') {
+      await dlCtx.answerCallbackQuery()
+      break
     }
+    if (dlCtx.message?.text) {
+      const parsed = parseDate(dlCtx.message.text)
+      if (parsed) {
+        deadline = parsed.toISOString()
+        await dlCtx.reply(`📅 Дедлайн: ${parsed.toLocaleDateString('ru-RU')}`)
+        break deadlineLoop
+      }
+      await dlCtx.reply('⚠️ Не понял формат. Введите, например: <b>25.03</b> или <b>25.03.2026</b>, либо нажмите «Пропустить».',
+        { parse_mode: 'HTML' })
+      continue
+    }
+    await dlCtx.reply('👆 Введите дату или нажмите «Пропустить».')
   }
 
-  // Шаг 4: Клиент
+  // Шаг 4: Клиент (с поиском по имени)
   const clientKb = await conversation.external(() => clientSelectKeyboard(user.id, user.role))
-  const lastCtx = dlCtx.callbackQuery ? dlCtx : dlCtx
-  await ctx.reply('Привязать к клиенту?', { reply_markup: clientKb })
-  const clientCtx = await conversation.wait()
+  await ctx.reply('Привязать к клиенту? Выберите или введите имя для поиска:', { reply_markup: clientKb })
   let clientId: string | null = null
-  if (clientCtx.callbackQuery?.data?.startsWith('client:') && clientCtx.callbackQuery.data !== 'client:skip') {
-    clientId = clientCtx.callbackQuery.data.split(':')[1]
-    await clientCtx.answerCallbackQuery()
-  } else if (clientCtx.callbackQuery?.data === 'client:skip') {
-    await clientCtx.answerCallbackQuery()
+  clientLoop: while (true) {
+    const clientCtx = await conversation.wait()
+    if (clientCtx.message?.text?.startsWith('/')) { await clientCtx.reply('Диалог завершён.'); return }
+    if (clientCtx.callbackQuery?.data === 'client:skip') {
+      await clientCtx.answerCallbackQuery()
+      break
+    }
+    if (clientCtx.callbackQuery?.data?.startsWith('client:')) {
+      clientId = clientCtx.callbackQuery.data.split(':')[1]
+      await clientCtx.answerCallbackQuery()
+      break clientLoop
+    }
+    if (clientCtx.message?.text) {
+      const search = clientCtx.message.text.trim()
+      const found = await conversation.external(() =>
+        prisma.client.findMany({
+          where: {
+            OR: [{ firstName: { contains: search } }, { lastName: { contains: search } }],
+            ...(user.role === 'manager' ? { managerId: user.id } : {}),
+          },
+          take: 8,
+          select: { id: true, firstName: true, lastName: true },
+        })
+      )
+      if (found.length === 0) {
+        await clientCtx.reply('Клиенты не найдены. Попробуйте снова или выберите из списка:', { reply_markup: clientKb })
+      } else {
+        const kb = new InlineKeyboard()
+        for (const c of found) kb.text(`${c.firstName} ${c.lastName}`, `client:${c.id}`).row()
+        kb.text('⏭ Пропустить', 'client:skip')
+        await clientCtx.reply('Выберите клиента:', { reply_markup: kb })
+      }
+      continue
+    }
+    await clientCtx.reply('👆 Нажмите кнопку или введите имя клиента для поиска.')
   }
 
   // Шаг 5: Подтверждение
@@ -89,18 +125,14 @@ export async function createTaskConversation(
     `Создать?`,
     {
       parse_mode: 'HTML',
-      reply_markup: new (await import('grammy')).InlineKeyboard()
-        .text('✅ Создать', 'confirm:yes').text('❌ Отмена', 'confirm:no'),
+      reply_markup: new InlineKeyboard().text('✅ Создать', 'confirm:yes').text('❌ Отмена', 'confirm:no'),
     },
   )
 
-  const confirmCtx = await conversation.waitForCallbackQuery(/^confirm:/)
-  await confirmCtx.answerCallbackQuery()
-
-  if (confirmCtx.callbackQuery.data === 'confirm:no') {
-    await confirmCtx.reply('Отменено.')
-    return
-  }
+  const confirmResult = await waitCallback(conversation, /^confirm:/)
+  if (!confirmResult) return
+  await confirmResult.ctx.answerCallbackQuery()
+  if (confirmResult.data === 'confirm:no') { await confirmResult.ctx.reply('Отменено.'); return }
 
   const task = await conversation.external(() =>
     prisma.task.create({
@@ -119,5 +151,5 @@ export async function createTaskConversation(
   )
 
   logger.info('task.created_via_telegram', { taskId: task.id, userId: user.id })
-  await confirmCtx.reply(`✅ Задача «${title}» создана!`, { reply_markup: mainMenuKeyboard() })
+  await confirmResult.ctx.reply(`✅ Задача «${title}» создана!`, { reply_markup: mainMenuKeyboard() })
 }
