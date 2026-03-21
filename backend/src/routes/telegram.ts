@@ -67,7 +67,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
   try {
     await botHandleUpdate(req.body)
   } catch (err) {
-    logger.error('telegram.webhook_error', { error: (err as Error).message })
+    logger.error('telegram.webhook_error', { error: (err as Error).message, stack: (err as Error).stack })
   }
 
   res.json({ ok: true })
