@@ -11,6 +11,8 @@ export async function startBot(bot: Bot<BotContext>): Promise<void> {
       return
     }
 
+    await bot.init()  // обязательно перед handleUpdate в webhook-режиме
+
     const secret = process.env.TELEGRAM_WEBHOOK_SECRET
     await bot.api.setWebhook(webhookUrl, {
       secret_token: secret,
