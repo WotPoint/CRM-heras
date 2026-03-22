@@ -8,13 +8,19 @@ export interface ParsedIntent {
   intent: IntentType
   confidence: number
   entities: {
+    // Клиент (общее для всех интентов)
     clientFirstName: string | null
     clientLastName: string | null
     clientPhone: string | null
+    // Для log_activity
     activityType: 'meeting' | 'call' | 'email' | 'note' | null
     activityDate: string | null
     description: string | null
     result: string | null
+    // Для create_task
+    taskTitle: string | null
+    taskDeadline: string | null   // ISO datetime или только дата
+    taskPriority: 'low' | 'medium' | 'high' | null
   }
 }
 
@@ -29,6 +35,9 @@ const FALLBACK: ParsedIntent = {
     activityDate: null,
     description: null,
     result: null,
+    taskTitle: null,
+    taskDeadline: null,
+    taskPriority: null,
   },
 }
 

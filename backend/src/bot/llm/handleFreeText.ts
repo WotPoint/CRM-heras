@@ -44,12 +44,7 @@ export async function handleFreeText(ctx: BotContext, user: { id: string; name: 
   }
 
   if (parsed.intent === 'create_task') {
-    await ctx.reply(
-      '📌 Похоже, вы хотите создать задачу. Используйте пошаговый сценарий:',
-      { reply_markup: mainMenuKeyboard() },
-    )
-    await ctx.conversation.enter('createTask')
-    return true
+    return await handleCreateTask(ctx, user, parsed.entities)
   }
 
   if (parsed.intent === 'quick_note') {
@@ -73,17 +68,7 @@ async function handleLogActivity(
   let isNewClient = false
 
   if (clientLastName) {
-    const existing = await prisma.client.findFirst({
-      where: {
-        OR: [
-          clientFirstName
-            ? { firstName: { contains: clientFirstName }, lastName: { contains: clientLastName } }
-            : { lastName: { contains: clientLastName } },
-          { lastName: { contains: clientLastName } },
-        ],
-        ...(user.role === 'manager' ? { managerId: user.id } : {}),
-      },
-    })
+    const existing = await findClient(clientLastName, clientFirstName, user)
 
     if (existing) {
       clientId = existing.id
@@ -146,6 +131,93 @@ async function handleLogActivity(
   })
 
   return true
+}
+
+async function handleCreateTask(
+  ctx: BotContext,
+  user: { id: string; name: string; role: string },
+  entities: Awaited<ReturnType<typeof parseIntent>>['entities'],
+): Promise<boolean> {
+  const { clientFirstName, clientLastName, clientPhone, taskTitle, taskDeadline, taskPriority } = entities
+
+  // Найти клиента (не создаём — задача может быть без клиента)
+  let clientId: string | null = null
+  let clientDisplayName = ''
+
+  if (clientLastName) {
+    const existing = await findClient(clientLastName, clientFirstName, user)
+    if (existing) {
+      clientId = existing.id
+      clientDisplayName = `${existing.firstName} ${existing.lastName}`.trim()
+    } else if (clientPhone || clientFirstName) {
+      // Создаём нового клиента только если есть хоть какие-то данные помимо фамилии
+      const newClient = await prisma.client.create({
+        data: {
+          id: uuidv4(),
+          firstName: clientFirstName ?? '',
+          lastName: clientLastName,
+          phone: clientPhone ?? null,
+          status: 'lead',
+          managerId: user.id,
+          tags: '[]',
+          createdAt: new Date().toISOString(),
+        },
+      })
+      clientId = newClient.id
+      clientDisplayName = `${clientFirstName ?? ''} ${clientLastName}`.trim()
+      logger.info('client.created_via_llm', { clientId, userId: user.id })
+    }
+  }
+
+  const title = taskTitle ?? (ctx.message?.text ?? 'Задача')
+  const priority = taskPriority ?? 'medium'
+  const deadline = taskDeadline ? new Date(taskDeadline) : null
+
+  const task = await prisma.task.create({
+    data: {
+      id: uuidv4(),
+      title,
+      priority,
+      status: 'new',
+      assigneeId: user.id,
+      clientId: clientId ?? null,
+      deadline: deadline ? deadline.toISOString() : null,
+      createdAt: new Date().toISOString(),
+    },
+  })
+
+  logger.info('task.created_via_llm', { taskId: task.id, userId: user.id })
+
+  const PRIORITY_LABELS: Record<string, string> = { high: '🔴 Высокий', medium: '🟡 Средний', low: '🟢 Низкий' }
+
+  const lines: string[] = []
+  lines.push('✅ <b>Задача создана!</b>')
+  lines.push('')
+  lines.push(`📌 ${title}`)
+  lines.push(`${PRIORITY_LABELS[priority]}`)
+  if (deadline) lines.push(`📅 ${deadline.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: deadline.getHours() ? 'short' : undefined })}`)
+  if (clientDisplayName) lines.push(`👤 ${clientDisplayName}`)
+
+  await ctx.reply(lines.join('\n'), {
+    parse_mode: 'HTML',
+    reply_markup: mainMenuKeyboard(),
+  })
+
+  return true
+}
+
+async function findClient(lastName: string, firstName: string | null, user: { id: string; role: string }) {
+  return prisma.client.findFirst({
+    where: {
+      OR: [
+        firstName
+          ? { firstName: { contains: firstName }, lastName: { contains: lastName } }
+          : { lastName: { contains: lastName } },
+        { lastName: { contains: lastName } },
+      ],
+      ...(user.role === 'manager' ? { managerId: user.id } : {}),
+    },
+  })
 }
 
 function text(ctx: BotContext): string {

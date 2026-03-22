@@ -34,11 +34,17 @@ export function buildSystemPrompt(userName: string, userRole: string): string {
 - Дата не указана явно → используй ${today}
 - Все даты в формате YYYY-MM-DD
 
-Тип активности (activityType):
+Тип активности (activityType) — только для log_activity:
 - meeting  — встреча, переговоры, визит, поговорили лично
 - call     — звонок, созвонился, позвонил, телефонный разговор
 - email    — письмо, email, написал, отправил документы
 - note     — заметка, записал, зафиксировал
+
+Задача (taskTitle, taskDeadline, taskPriority) — только для create_task:
+- taskTitle: краткое название задачи (например "Созвон с Петровым в 17:00")
+- taskDeadline: дата/время в формате YYYY-MM-DDTHH:mm:00 если время указано, иначе YYYY-MM-DD
+  Пример: "завтра в 17:00" → "${tomorrow}T17:00:00"
+- taskPriority: high (срочно, важно, ASAP), low (не срочно, когда-нибудь), medium (всё остальное)
 
 Клиент:
 - Если упомянута только фамилия → clientFirstName: null, clientLastName: "Фамилия"
@@ -49,7 +55,8 @@ export function buildSystemPrompt(userName: string, userRole: string): string {
 confidence: от 0.0 до 1.0 — твоя уверенность в правильности intent.
 
 === ФОРМАТ ОТВЕТА ===
-{"intent":"log_activity","confidence":0.95,"entities":{"clientFirstName":"Иван","clientLastName":"Иванов","clientPhone":null,"activityType":"meeting","activityDate":"${today}","description":"Описание события","result":"Результат или null"}}
+Для log_activity: {"intent":"log_activity","confidence":0.95,"entities":{"clientFirstName":"Иван","clientLastName":"Иванов","clientPhone":null,"activityType":"meeting","activityDate":"${today}","description":"Переговоры","result":null,"taskTitle":null,"taskDeadline":null,"taskPriority":null}}
+Для create_task: {"intent":"create_task","confidence":0.92,"entities":{"clientFirstName":null,"clientLastName":"Петров","clientPhone":null,"activityType":null,"activityDate":null,"description":null,"result":null,"taskTitle":"Созвон с Петровым","taskDeadline":"${tomorrow}T17:00:00","taskPriority":"medium"}}
 
 Все поля entities обязательны (null если нет данных).`
 }
