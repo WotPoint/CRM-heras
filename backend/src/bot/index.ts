@@ -3,6 +3,7 @@ import { conversations, createConversation } from '@grammyjs/conversations'
 import { type BotContext } from './context.js'
 import { initialSessionData } from './session.js'
 import { registerBotApi } from './notifications/sender.js'
+import prisma from '../lib/prisma.js'
 
 // Commands
 import { handleStart } from './commands/start.js'
@@ -20,6 +21,10 @@ import { mainMenuKeyboard } from './keyboards/mainMenu.js'
 
 // Middleware
 import { requireLinked } from './middleware/requireLinked.js'
+
+// LLM
+import { handleFreeText } from './llm/handleFreeText.js'
+import { getGroqClient } from './llm/client.js'
 
 let botInstance: Bot<BotContext> | null = null
 
@@ -92,8 +97,16 @@ export function createBot(): Bot<BotContext> {
     await handleTasks(ctx)
   })
 
-  // Fallback для незнакомых сообщений
+  // Fallback: сначала пробуем LLM, иначе показываем меню
   bot.on('message', requireLinked, async (ctx) => {
+    if (getGroqClient() && ctx.message?.text && !ctx.message.text.startsWith('/')) {
+      const chatId = String(ctx.chat!.id)
+      const user = await prisma.user.findFirst({ where: { telegramChatId: chatId } })
+      if (user) {
+        const handled = await handleFreeText(ctx, { id: user.id, name: user.name, role: user.role })
+        if (handled) return
+      }
+    }
     await ctx.reply('Что хотите сделать?', { reply_markup: mainMenuKeyboard() })
   })
 
