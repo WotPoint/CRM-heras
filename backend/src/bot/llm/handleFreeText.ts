@@ -1,6 +1,7 @@
 import { type BotContext } from '../context.js'
 import { mainMenuKeyboard } from '../keyboards/mainMenu.js'
 import { parseIntent } from './parseIntent.js'
+import { askAssistant } from './askAssistant.js'
 import prisma from '../../lib/prisma.js'
 import { logger } from '../../lib/logger.js'
 import { v4 as uuidv4 } from 'uuid'
@@ -31,6 +32,11 @@ export async function handleFreeText(ctx: BotContext, user: { id: string; name: 
   await ctx.api.deleteMessage(ctx.chat!.id, typingMsg.message_id).catch(() => undefined)
 
   if (parsed.confidence < CONFIDENCE_THRESHOLD || parsed.intent === 'unknown') {
+    const answer = await askAssistant(text, user)
+    if (answer) {
+      await ctx.reply(answer, { reply_markup: mainMenuKeyboard() })
+      return true
+    }
     return false
   }
 
