@@ -12,7 +12,9 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "test": "vitest run"
+    "test": "vitest run",
+    "rag:index": "tsx src/scripts/indexDocs.ts",
+    "rag:test": "tsx src/scripts/testRag.ts"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -28,6 +30,7 @@
     "googleapis": "^171.4.0",
     "grammy": "^1.41.1",
     "groq-sdk": "^1.1.1",
+    "@huggingface/transformers": "^3.4.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
     "prisma": "^5.22.0",

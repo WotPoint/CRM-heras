@@ -211,3 +211,17 @@ model EmailMessage {
   thread  EmailThread @relation("ThreadMessages", fields: [threadId], references: [id])
   sentBy  User?       @relation("SentByUser", fields: [sentByUserId], references: [id])
 }
+
+// База знаний: регламенты и должностные инструкции
+model KnowledgeChunk {
+  id        String @id
+  content   String // текст чанка
+  embedding String // JSON-строка: float[] (1536 мерений OpenAI)
+  docTitle  String // имя файла-источника
+  docType   String // regulation | job_instruction
+  section   String @default("") // заголовок раздела (если есть)
+  position  String @default("") // должность (для инструкций)
+  docHash   String // md5 файла — для обнаружения изменений
+  chunkIdx  Int    // порядковый номер чанка в документе
+  createdAt String
+}

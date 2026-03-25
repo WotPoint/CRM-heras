@@ -1,5 +1,6 @@
 import { getGroqClient, GROQ_MODEL } from './client.js'
 import { buildAssistantSystemPrompt } from './systemPrompt.js'
+import { retrieveKnowledge, formatKnowledgeContext } from './retrieveKnowledge.js'
 import { logger } from '../../lib/logger.js'
 import prisma from '../../lib/prisma.js'
 
@@ -15,7 +16,7 @@ export async function askAssistant(
     todayEnd.setHours(23, 59, 59, 999)
     const todayEndISO = todayEnd.toISOString()
 
-    const [clients, tasks, deals] = await Promise.all([
+    const [clients, tasks, deals, knowledgeChunks] = await Promise.all([
       prisma.client.findMany({
         where: { managerId: user.id, status: { not: 'archived' } },
         select: { firstName: true, lastName: true, status: true, phone: true },
@@ -45,6 +46,7 @@ export async function askAssistant(
         },
         take: 20,
       }),
+      retrieveKnowledge(text),
     ])
 
     const STATUS_LABELS: Record<string, string> = {
@@ -75,7 +77,8 @@ export async function askAssistant(
       })
       .join('\n')
 
-    const systemPrompt = buildAssistantSystemPrompt(user.name, user.role, clientList, todayTasks, openDeals)
+    const knowledgeContext = knowledgeChunks ? formatKnowledgeContext(knowledgeChunks) : undefined
+    const systemPrompt = buildAssistantSystemPrompt(user.name, user.role, clientList, todayTasks, openDeals, knowledgeContext)
 
     const response = await client.chat.completions.create({
       model: GROQ_MODEL,
